@@ -39,27 +39,33 @@ const IC = {
   chart:`<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 11V7M5 11V4M8 11V2M11 11V5M12 11H1"/></svg>`,
   cog:  `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="6.5" r="2.2"/><path d="M6.5 1v1.2M6.5 10.8V12M1 6.5h1.2M10.8 6.5H12M2.8 2.8l.9.9M9.3 9.3l.9.9M2.8 10.2l.9-.9M9.3 3.7l.9-.9"/></svg>`,
   sms:  `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 1h11a1 1 0 011 1v7a1 1 0 01-1 1H4l-3 2V2a1 1 0 011-1z"/></svg>`,
+  diary:`<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 1h9a1 1 0 011 1v9a1 1 0 01-1 1H2a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M4 4h5M4 6.5h5M4 9h3"/><path d="M1 4h2M1 6.5h2M1 9h2"/></svg>`,
+  book: `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 1h9a1 1 0 011 1v9a1 1 0 01-1 1H2a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M4 4h5M4 6.5h5M4 9h3"/><path d="M1 4h12"/></svg>`,
+  diary:`<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 1h9a1 1 0 011 1v9a1 1 0 01-1 1H2a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M4 4h5M4 6.5h5M4 9h3"/><path d="M1 4h2"/></svg>`,
 };
 
 const NAVS = {
   admin:[
     {lbl:'Main',    items:[{id:'dash',    ic:'grid', t:'Dashboard'}]},
-    {lbl:'Manage',  items:[{id:'students',ic:'users',t:'Students'},{id:'att',ic:'chk',t:'Attendance'},{id:'fees',ic:'card',t:'Fees'},{id:'ann',ic:'bell',t:'Announcements'},{id:'papers',ic:'doc',t:'Paper Info'},{id:'results',ic:'chart',t:'Results'}]},
+    {lbl:'Manage',  items:[{id:'students',ic:'users',t:'Students'},{id:'att',ic:'chk',t:'Attendance'},{id:'fees',ic:'card',t:'Fees'},{id:'ann',ic:'bell',t:'Announcements'},{id:'diary',ic:'diary',t:'Diary'},{id:'papers',ic:'doc',t:'Paper Info'},{id:'results',ic:'chart',t:'Results'}]},
+    {lbl:'Diary',  items:[{id:'diary',ic:'bell',t:'Class Diary'}]},
+    {lbl:'Diary',   items:[{id:'diary',    ic:'book',t:'Class Diary'}]},
     {lbl:'Settings',items:[{id:'classes',ic:'cog',t:'Classes'},{id:'usermgmt',ic:'users',t:'Users'},{id:'sms',ic:'sms',t:'SMS Logs'}]},
   ],
   teacher:[
-    {lbl:'Portal',items:[{id:'t-dash',ic:'grid',t:'Dashboard'},{id:'att',ic:'chk',t:'Attendance'},{id:'results',ic:'chart',t:'Results'},{id:'papers',ic:'doc',t:'Papers'},{id:'ann',ic:'bell',t:'Notices'}]},
+    {lbl:'Portal',items:[{id:'t-dash',ic:'grid',t:'Dashboard'},{id:'att',ic:'chk',t:'Attendance'},{id:'diary',ic:'diary',t:'Diary'},{id:'results',ic:'chart',t:'Results'},{id:'papers',ic:'doc',t:'Papers'},{id:'ann',ic:'bell',t:'Notices'}]},
   ],
   student:[
-    {lbl:'My Portal',items:[{id:'s-dash',ic:'grid',t:'Dashboard'},{id:'s-att',ic:'chk',t:'My Attendance'},{id:'s-fees',ic:'card',t:'My Fees'},{id:'s-papers',ic:'doc',t:'Exam Schedule'},{id:'s-results',ic:'chart',t:'My Results'},{id:'ann',ic:'bell',t:'Notices'}]},
+    {lbl:'My Portal',items:[{id:'s-dash',ic:'grid',t:'Dashboard'},{id:'s-att',ic:'chk',t:'My Attendance'},{id:'s-fees',ic:'card',t:'My Fees'},{id:'diary',ic:'diary',t:'Diary'},{id:'s-papers',ic:'doc',t:'Exam Schedule'},{id:'s-results',ic:'chart',t:'My Results'},{id:'ann',ic:'bell',t:'Notices'}]},
   ],
   parent:[
-    {lbl:"Child's Info",items:[{id:'p-dash',ic:'grid',t:'Overview'},{id:'s-att',ic:'chk',t:'Attendance'},{id:'s-fees',ic:'card',t:'Fees'},{id:'s-results',ic:'chart',t:'Results'},{id:'ann',ic:'bell',t:'Notices'}]},
+    {lbl:"Child's Info",items:[{id:'p-dash',ic:'grid',t:'Overview'},{id:'s-att',ic:'chk',t:'Attendance'},{id:'s-fees',ic:'card',t:'Fees'},{id:'diary',ic:'diary',t:'Diary'},{id:'s-results',ic:'chart',t:'Results'},{id:'ann',ic:'bell',t:'Notices'}]},
   ],
 };
 
-const TITLES={
+const TITLES={diary:'Class Diary',diary:'Daily Diary',
   dash:'Dashboard',students:'Students',att:'Attendance',fees:'Fees',ann:'Announcements',papers:'Paper Info',results:'Results',classes:'Classes',usermgmt:'Users',sms:'SMS Logs',
+  diary:'Class Diary',
   't-dash':'Dashboard','s-dash':'My Dashboard','p-dash':'Child Overview',
   's-att':'My Attendance','s-fees':'My Fees','s-papers':'Exam Schedule','s-results':'My Results',
 };
@@ -196,9 +202,13 @@ async function render(id){
     else if(id==='ann')       await secAnn(c);
     else if(id==='papers')    await secPapers(c);
     else if(id==='results')   await secResults(c);
+    else if(id==='diary')     await secDiary(c);
+    else if(id==='diary')     await secDiary(c);
     else if(id==='classes')   await secClasses(c);
     else if(id==='usermgmt')  await secUsers(c);
     else if(id==='sms')       await secSMS(c);
+    else if(id==='diary')     await secDiary(c);
+    else if(id==='diary')     await secDiary(c);
     else if(id==='s-att')     await secMyAtt(c);
     else if(id==='s-fees')    await secMyFees(c);
     else if(id==='s-papers')  await secMyPapers(c);
@@ -756,4 +766,633 @@ async function secSMS(c){
     await POST('/sms/test',{to:v('sms-to'),message:v('sms-msg')});
     closeModal();toast('Test SMS sent!','ok');secSMS(c);
   };
+}
+
+// ── DIARY ──────────────────────────────────────────────────────────────────
+async function secDiary(c) {
+  const canEdit = CU.role === 'admin' || CU.role === 'teacher';
+  const fc = CLS[0]?.name || '9';
+  const fs = secList(fc)[0] || 'A';
+
+  const render = async (cls=fc, sec=fs, date=td()) => {
+    const entries = await GET(`/diary?cls=${cls}&section=${sec}&date=${date}`) || [];
+    const subjects = ['English','Mathematics','Physics','Chemistry','Biology','Urdu','Islamiyat','Pakistan Studies','Computer','Other'];
+
+    c.innerHTML = `
+    <div class="card">
+      <div class="card-title">Daily Diary — Homework & Notes
+        ${canEdit ? `<button class="btn bp" onclick="addDiaryModal('${cls}','${sec}','${date}')">+ Add Entry</button>` : ''}
+      </div>
+      <div class="frow" style="margin-bottom:14px;">
+        <select id="dc" onchange="rDiary()">${CLS.map(cl=>`<option value="${cl.name}" ${cl.name===cls?'selected':''}>Class ${cl.name}</option>`).join('')}</select>
+        <select id="ds" onchange="rDiary()">${secList(cls).map(s=>`<option value="${s}" ${s===sec?'selected':''}>${s}</option>`).join('')}</select>
+        <input id="dd" type="date" value="${date}" onchange="rDiary()">
+      </div>
+      ${entries.length === 0 ?
+        `<div style="text-align:center;padding:30px;color:#9ca3af;">
+          <div style="font-size:32px;margin-bottom:8px;">📚</div>
+          <div style="font-size:14px;font-weight:500;">No diary entries for this date</div>
+          <div style="font-size:12px;margin-top:4px;">${canEdit ? 'Click + Add Entry to add homework' : 'No homework assigned for today'}</div>
+        </div>` :
+        entries.map(e => `
+        <div style="border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              ${chip(e.subject, 'blue')}
+              ${e.is_important ? chip('Important','red') : ''}
+              <span style="font-size:11px;color:var(--text2);">Class ${e.class}-${e.section} · ${e.date}</span>
+            </div>
+            ${canEdit ? `<div style="display:flex;gap:6px;">
+              <button class="btn bs" onclick="editDiaryModal('${e.id}','${e.subject}','${e.class}','${e.section}','${e.date}')">Edit</button>
+              <button class="btn bs bd" onclick="delDiary('${e.id}')">Delete</button>
+            </div>` : ''}
+          </div>
+          <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">${e.title}</div>
+          <div style="font-size:13px;color:var(--text2);line-height:1.6;">${e.description || ''}</div>
+          ${e.due_date ? `<div style="margin-top:8px;font-size:11px;color:var(--amber);font-weight:500;">📅 Due: ${e.due_date}</div>` : ''}
+          <div style="margin-top:6px;font-size:11px;color:var(--text3);">Added by: ${e.users?.name || 'Teacher'}</div>
+        </div>`).join('')
+      }
+    </div>`;
+
+    window.rDiary = async () => {
+      const cls2 = v('dc');
+      const sel = document.getElementById('ds');
+      const sl = secList(cls2);
+      if (sel) sel.innerHTML = sl.map(s=>`<option value="${s}">${s}</option>`).join('');
+      await render(cls2, sl[0], v('dd'));
+    };
+
+    const diaryForm = (d={}) => `
+      <div class="fg">
+        <div class="field"><label>Subject *</label>
+          <select id="df-sub">
+            ${subjects.map(s=>`<option value="${s}" ${s===(d.subject||'')?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>Date *</label><input type="date" id="df-date" value="${d.date||td()}"></div>
+        <div class="field"><label>Class *</label><select id="df-cls">${CLS.map(cl=>`<option value="${cl.name}" ${cl.name===(d.class||cls)?'selected':''}>Class ${cl.name}</option>`).join('')}</select></div>
+        <div class="field"><label>Section *</label><select id="df-sec">${secList(d.class||cls).map(s=>`<option value="${s}" ${s===(d.section||sec)?'selected':''}>${s}</option>`).join('')}</select></div>
+      </div>
+      <div class="field"><label>Homework Title *</label><input id="df-title" value="${d.title||''}" placeholder="e.g. Complete Exercise 5 from Chapter 3"></div>
+      <div class="field"><label>Description / Details</label><textarea id="df-desc" rows="4" placeholder="Detailed instructions for students...">${d.description||''}</textarea></div>
+      <div class="fg">
+        <div class="field"><label>Due Date</label><input type="date" id="df-due" value="${d.due_date||''}"></div>
+        <div class="field"><label>Mark as Important?</label>
+          <select id="df-imp">
+            <option value="false" ${!d.is_important?'selected':''}>No</option>
+            <option value="true" ${d.is_important?'selected':''}>Yes — Mark Important</option>
+          </select>
+        </div>
+      </div>`;
+
+    window.addDiaryModal = (cls3, sec3, date3) => openModal('Add Diary Entry', diaryForm({class:cls3,section:sec3,date:date3}),
+      `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn bp" onclick="saveDiary()">Save</button>`);
+
+    window.editDiaryModal = async (id, subject, dcls, dsec, ddate) => {
+      const entry = await GET('/diary?cls='+dcls+'&section='+dsec+'&date='+ddate);
+      const e = (entry||[]).find(x=>x.id===id) || {id,subject,class:dcls,section:dsec,date:ddate};
+      openModal('Edit Diary Entry', diaryForm(e),
+        `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn bp" onclick="saveDiary('${id}')">Update</button>`);
+    };
+
+    window.saveDiary = async (id) => {
+      const d = {
+        subject: v('df-sub'), date: v('df-date'), class: v('df-cls'),
+        section: v('df-sec'), title: v('df-title'), description: v('df-desc'),
+        due_date: v('df-due') || null, is_important: v('df-imp') === 'true',
+        created_by: CU.id
+      };
+      if (!d.subject || !d.title || !d.class || !d.section) { toast('Fill required fields', 'err'); return; }
+      const res = id ? await PUT('/diary/'+id, d) : await POST('/diary', d);
+      if (res?.ok !== false) { closeModal(); toast(id ? 'Updated!' : 'Diary entry added!', 'ok'); await render(v('dc')||cls, v('ds')||sec, v('dd')||date); }
+      else toast('Error: ' + (res?.error || 'Failed'), 'err');
+    };
+
+    window.delDiary = async (id) => {
+      if (!confirm('Delete this diary entry?')) return;
+      await DEL('/diary/' + id);
+      toast('Deleted');
+      await render(v('dc')||cls, v('ds')||sec, v('dd')||date);
+    };
+  };
+
+  await render();
+}
+
+// ── DIARIES ────────────────────────────────────────────────────────────────
+async function secDiary(c) {
+  const canEdit = CU.role === 'admin' || CU.role === 'teacher';
+  const render = async (cls = CLS[0]?.name || '', sec = '', date = '') => {
+    const params = new URLSearchParams();
+    if (cls) params.set('cls', cls);
+    if (sec) params.set('section', sec);
+    if (date) params.set('date', date);
+    const entries = await GET('/diaries?' + params) || [];
+    const subjects = ['English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Urdu', 'Islamiyat', 'Pakistan Studies', 'Computer'];
+    c.innerHTML = `
+      ${canEdit ? `<div class="card">
+        <div class="card-title">Add Homework Entry</div>
+        <div class="fg">
+          <div class="field"><label>Date *</label><input type="date" id="di-date" value="${td()}"></div>
+          <div class="field"><label>Class *</label><select id="di-cls" onchange="updDiarySec()">${clsOpts('', false)}</select></div>
+          <div class="field"><label>Section *</label><select id="di-sec">${CLS[0] ? secOpts(CLS[0].name, '') : ''}</select></div>
+          <div class="field"><label>Subject *</label>
+            <select id="di-sub">
+              ${subjects.map(s => `<option>${s}</option>`).join('')}
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="field"><label>Homework / Task *</label><textarea id="di-hw" rows="3" placeholder="e.g. Complete exercise 5 page 42, Read chapter 3..."></textarea></div>
+        <div class="field"><label>Note (optional)</label><input id="di-note" placeholder="e.g. Will be checked tomorrow, bring textbook..."></div>
+        <button class="btn bp" onclick="saveDiary()">Post Homework</button>
+      </div>` : ''}
+      <div class="card">
+        <div class="card-title">Class Diary
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <select id="df-cls" onchange="rDiary()">${clsOpts(cls)}</select>
+            <select id="df-sec" onchange="rDiary()"><option value="">All Sections</option>${cls ? secOpts(cls, sec) : ''}</select>
+            <input type="date" id="df-date" value="${date}" onchange="rDiary()" style="padding:6px 10px;border:1px solid var(--border2);border-radius:var(--r);font-size:12px;">
+            <button class="btn bs" onclick="document.getElementById('df-date').value='';rDiary()">Clear Date</button>
+          </div>
+        </div>
+        ${entries.length === 0
+          ? '<p style="color:#9ca3af;font-size:12px;padding:10px 0;">No homework entries found. Select a class to view diary.</p>'
+          : entries.map(e => `
+          <div style="border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:10px;background:var(--bg3);">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                ${chip(e.subject, 'blue')}
+                ${chip('Class ' + e.class + '-' + e.section, 'gray')}
+                <span style="font-size:11px;color:var(--text2);">${e.date}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:11px;color:var(--text2);">By: ${e.created_by_name}</span>
+                ${canEdit ? `<button class="btn bs bd" onclick="delDiary('${e.id}')">Delete</button>` : ''}
+              </div>
+            </div>
+            <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px;">${e.homework}</div>
+            ${e.note ? `<div style="font-size:12px;color:var(--text2);margin-top:4px;">📌 ${e.note}</div>` : ''}
+          </div>`).join('')
+        }
+      </div>`;
+
+    window.updDiarySec = () => {
+      const el = document.getElementById('di-sec');
+      if (el) el.innerHTML = secOpts(v('di-cls'), '');
+    };
+    window.rDiary = async () => {
+      const cls = v('df-cls');
+      const secEl = document.getElementById('df-sec');
+      if (secEl && cls) secEl.innerHTML = '<option value="">All Sections</option>' + secOpts(cls, '');
+      await render(cls, v('df-sec'), v('df-date'));
+    };
+    window.saveDiary = async () => {
+      const d = {
+        date: v('di-date'), class: v('di-cls'), section: v('di-sec'),
+        subject: v('di-sub'), homework: v('di-hw'), note: v('di-note'),
+        created_by: CU.id
+      };
+      if (!d.date || !d.class || !d.section || !d.homework) { toast('Fill required fields', 'err'); return; }
+      const res = await POST('/diaries', d);
+      if (res?.ok !== false) {
+        document.getElementById('di-hw').value = '';
+        document.getElementById('di-note').value = '';
+        toast('Homework posted!', 'ok');
+        render(v('df-cls'), v('df-sec'), v('df-date'));
+      } else toast('Error: ' + (res?.error || 'Failed'), 'err');
+    };
+    window.delDiary = async (id) => {
+      if (!confirm('Delete this homework entry?')) return;
+      await DEL('/diaries/' + id);
+      toast('Deleted');
+      render(v('df-cls'), v('df-sec'), v('df-date'));
+    };
+  };
+  await render();
+}
+
+// ── DIARY ──────────────────────────────────────────────────────────────────
+async function secDiary(c) {
+  const canEdit = CU.role === 'admin' || CU.role === 'teacher';
+  const fc = CLS[0]?.name || '9';
+  const fs = secList(fc)[0] || 'A';
+
+  const render = async (cls=fc, sec=fs, date=td()) => {
+    const params = new URLSearchParams({ cls, section: sec, date });
+    const entries = await GET('/diary?' + params) || [];
+    const secHTML = secList(cls).map(s => `<option value="${s}" ${s===sec?'selected':''}>${s}</option>`).join('');
+
+    c.innerHTML = `
+    <div class="card">
+      <div class="card-title">
+        Class Diary
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${canEdit ? `<button class="btn bp" onclick="addDiaryEntry('${cls}','${sec}','${date}')">+ Add Homework</button>` : ''}
+        </div>
+      </div>
+      <div class="frow" style="margin-bottom:14px;">
+        <select id="dc" onchange="rDiary()">
+          ${CLS.map(cl=>`<option value="${cl.name}" ${cl.name===cls?'selected':''}>Class ${cl.name}</option>`).join('')}
+        </select>
+        <select id="ds" onchange="rDiary()">
+          ${secHTML}
+        </select>
+        <input id="dd" type="date" value="${date}" onchange="rDiary()">
+        <button class="btn" onclick="rDiary()">View</button>
+      </div>
+
+      ${entries.length === 0 ?
+        `<div style="text-align:center;padding:40px 20px;color:#9ca3af;">
+          <div style="font-size:32px;margin-bottom:10px;">📖</div>
+          <div style="font-size:14px;font-weight:500;margin-bottom:4px;">No diary entries for this date</div>
+          <div style="font-size:12px;">${canEdit ? 'Click "+ Add Homework" to add entries' : 'No homework assigned for today'}</div>
+        </div>` :
+        `<div style="display:flex;flex-direction:column;gap:12px;">
+          ${entries.map(e => `
+          <div style="border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;">
+            <div style="background:${subjectColor(e.subject)};padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:18px;">${subjectEmoji(e.subject)}</span>
+                <div>
+                  <div style="font-size:13px;font-weight:600;color:var(--text);">${e.subject}</div>
+                  <div style="font-size:11px;color:var(--text2);">Class ${e.class}-${e.section} · ${e.date} · By ${e.teacher_name||'Teacher'}</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                ${e.due_date ? `<span class="chip chip-amber">Due: ${e.due_date}</span>` : ''}
+                ${chip(e.type||'Homework', e.type==='Test'?'red':e.type==='Project'?'purple':'blue')}
+                ${canEdit ? `
+                  <button class="btn bs" onclick="editDiaryEntry('${e.id}','${e.subject}','${e.class}','${e.section}','${e.date}')">Edit</button>
+                  <button class="btn bs bd" onclick="delDiaryEntry('${e.id}')">Del</button>
+                ` : ''}
+              </div>
+            </div>
+            <div style="padding:12px 14px;background:var(--bg2);">
+              <div style="font-size:13px;color:var(--text);line-height:1.6;white-space:pre-wrap;">${e.homework}</div>
+              ${e.note ? `<div style="margin-top:8px;padding:8px 10px;background:var(--amber-l);border-radius:var(--r);font-size:12px;color:var(--amber);">📌 Note: ${e.note}</div>` : ''}
+            </div>
+          </div>`).join('')}
+        </div>`
+      }
+    </div>
+
+    <div class="card">
+      <div class="card-title">Weekly Overview — ${date.slice(0,7)}</div>
+      ${await diaryWeekly(cls, sec, date.slice(0,7))}
+    </div>`;
+  };
+
+  window.rDiary = async () => {
+    const cls = v('dc');
+    const secEl = document.getElementById('ds');
+    const sl = secList(cls);
+    if (secEl) secEl.innerHTML = sl.map(s=>`<option value="${s}">${s}</option>`).join('');
+    await render(cls, sl[0], v('dd'));
+  };
+
+  const diaryForm = (e={}) => `
+    <div class="field"><label>Subject *</label>
+      <select id="df-sub">
+        ${['English','Mathematics','Physics','Chemistry','Biology','Urdu','Islamiat','Pakistan Studies','Computer','Geography','History','Other'].map(s=>`<option value="${s}" ${(e.subject||'')=== s?'selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>
+    <div class="fg">
+      <div class="field"><label>Class *</label>
+        <select id="df-cls" onchange="updDiarySec()">${clsOpts(e.class||fc, false)}</select>
+      </div>
+      <div class="field"><label>Section *</label>
+        <select id="df-sec">${secOpts(e.class||fc, e.section||fs)}</select>
+      </div>
+    </div>
+    <div class="fg">
+      <div class="field"><label>Date *</label>
+        <input type="date" id="df-date" value="${e.date||td()}">
+      </div>
+      <div class="field"><label>Due Date (optional)</label>
+        <input type="date" id="df-due" value="${e.due_date||''}">
+      </div>
+    </div>
+    <div class="field"><label>Type</label>
+      <select id="df-type">
+        <option value="Homework" ${(e.type||'Homework')==='Homework'?'selected':''}>Homework</option>
+        <option value="Test" ${e.type==='Test'?'selected':''}>Test / Quiz</option>
+        <option value="Project" ${e.type==='Project'?'selected':''}>Project</option>
+        <option value="Classwork" ${e.type==='Classwork'?'selected':''}>Classwork</option>
+        <option value="Reading" ${e.type==='Reading'?'selected':''}>Reading</option>
+      </select>
+    </div>
+    <div class="field"><label>Homework / Task *</label>
+      <textarea id="df-hw" rows="4" placeholder="e.g. Complete Exercise 5.1, Questions 1 to 10 from the textbook...">${e.homework||''}</textarea>
+    </div>
+    <div class="field"><label>Teacher Note (optional)</label>
+      <input id="df-note" placeholder="e.g. Bring geometry box tomorrow" value="${e.note||''}">
+    </div>`;
+
+  window.addDiaryEntry = (cls, sec, date) => {
+    openModal('Add Diary Entry', diaryForm({class:cls, section:sec, date}),
+      `<button class="btn" onclick="closeModal()">Cancel</button>
+       <button class="btn bp" onclick="saveDiaryEntry()">Save Entry</button>`);
+  };
+
+  window.editDiaryEntry = async (id, subject, cls, sec, date) => {
+    const entries = await GET(`/diary?cls=${cls}&section=${sec}&date=${date}`) || [];
+    const e = entries.find(x => x.id === id) || { id, subject, class:cls, section:sec, date };
+    openModal('Edit Diary Entry', diaryForm(e),
+      `<button class="btn" onclick="closeModal()">Cancel</button>
+       <button class="btn bp" onclick="saveDiaryEntry('${id}')">Update</button>`);
+  };
+
+  window.updDiarySec = () => {
+    const el = document.getElementById('df-sec');
+    if (el) el.innerHTML = secOpts(v('df-cls'), '');
+  };
+
+  window.saveDiaryEntry = async (id) => {
+    const d = {
+      subject:   v('df-sub'),
+      class:     v('df-cls'),
+      section:   v('df-sec'),
+      date:      v('df-date'),
+      due_date:  v('df-due') || null,
+      type:      v('df-type'),
+      homework:  v('df-hw'),
+      note:      v('df-note'),
+      created_by: CU.id,
+    };
+    if (!d.subject || !d.class || !d.section || !d.homework) {
+      toast('Fill all required fields', 'err'); return;
+    }
+    const res = id ? await PUT('/diary/' + id, d) : await POST('/diary', d);
+    if (res?.ok !== false) {
+      closeModal();
+      toast(id ? 'Updated!' : 'Diary entry added!', 'ok');
+      await render(v('dc') || d.class, v('ds') || d.section, v('dd') || d.date);
+    } else {
+      toast('Error saving entry', 'err');
+    }
+  };
+
+  window.delDiaryEntry = async (id) => {
+    if (!confirm('Delete this diary entry?')) return;
+    await DEL('/diary/' + id);
+    toast('Deleted');
+    rDiary();
+  };
+
+  await render();
+}
+
+// Diary weekly summary
+async function diaryWeekly(cls, sec, month) {
+  const entries = await GET(`/diary?cls=${cls}&section=${sec}&month=${month}`) || [];
+  if (!entries.length) return '<p style="color:#9ca3af;font-size:12px;">No entries this month.</p>';
+
+  // Group by date
+  const byDate = {};
+  entries.forEach(e => {
+    if (!byDate[e.date]) byDate[e.date] = [];
+    byDate[e.date].push(e);
+  });
+
+  const dates = Object.keys(byDate).sort().reverse();
+  return `<div style="display:flex;flex-direction:column;gap:8px;">
+    ${dates.slice(0,7).map(date => `
+    <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;">
+      <div style="padding:8px 12px;background:var(--bg3);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:12px;font-weight:600;">${formatDate(date)}</span>
+        <span class="chip chip-blue">${byDate[date].length} subject${byDate[date].length>1?'s':''}</span>
+      </div>
+      <div style="padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px;">
+        ${byDate[date].map(e=>`
+          <div style="display:flex;align-items:center;gap:6px;padding:4px 10px;background:var(--bg3);border-radius:20px;font-size:12px;">
+            <span>${subjectEmoji(e.subject)}</span>
+            <span>${e.subject}</span>
+            ${chip(e.type||'Homework', e.type==='Test'?'red':e.type==='Project'?'purple':'blue')}
+          </div>`).join('')}
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+
+// Diary helper functions
+function subjectEmoji(subject) {
+  const map = {
+    'English':'📝', 'Mathematics':'🔢', 'Physics':'⚡', 'Chemistry':'🧪',
+    'Biology':'🌿', 'Urdu':'✒️', 'Islamiat':'☪️', 'Pakistan Studies':'🗺️',
+    'Computer':'💻', 'Geography':'🌍', 'History':'📜', 'Other':'📚'
+  };
+  return map[subject] || '📚';
+}
+
+function subjectColor(subject) {
+  const map = {
+    'English':'#f0f9ff', 'Mathematics':'#f0fdf4', 'Physics':'#fefce8',
+    'Chemistry':'#fdf4ff', 'Biology':'#f0fdf4', 'Urdu':'#fff7ed',
+    'Islamiat':'#f0fdf4', 'Pakistan Studies':'#eff6ff', 'Computer':'#f8fafc',
+    'Geography':'#ecfdf5', 'History':'#fef9c3', 'Other':'#f9fafb'
+  };
+  return map[subject] || '#f9fafb';
+}
+
+function formatDate(dateStr) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-PK', { weekday:'long', day:'numeric', month:'long' });
+}
+
+// ── DIARY ──────────────────────────────────────────────────────────────────
+async function secDiary(c) {
+  const canEdit = CU.role === 'admin' || CU.role === 'teacher';
+  const fc = CLS[0]?.name || '9';
+  const fs = secList(fc)[0] || 'A';
+
+  const render = async (cls=fc, sec=fs, month=mon()) => {
+    const entries = await GET(`/diary?cls=${cls}&section=${sec}&month=${month}`) || [];
+
+    // group by date
+    const byDate = {};
+    entries.forEach(e => {
+      if (!byDate[e.date]) byDate[e.date] = [];
+      byDate[e.date].push(e);
+    });
+    const dates = Object.keys(byDate).sort((a,b) => b.localeCompare(a));
+
+    const subjectColors = {
+      'English':'blue','Mathematics':'green','Physics':'amber',
+      'Chemistry':'purple','Biology':'green','Urdu':'red',
+      'Islamiat':'green','Pakistan Studies':'amber','Computer':'blue',
+    };
+    const getColor = sub => {
+      for (const key of Object.keys(subjectColors)) {
+        if (sub.toLowerCase().includes(key.toLowerCase())) return subjectColors[key];
+      }
+      return 'gray';
+    };
+
+    c.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+        <div class="frow" style="margin:0;flex:1;">
+          <select id="dcl" onchange="rDiary()" style="max-width:140px;">
+            ${CLS.map(cl=>`<option value="${cl.name}" ${cl.name===cls?'selected':''}>Class ${cl.name}</option>`).join('')}
+          </select>
+          <select id="dse" onchange="rDiary()" style="max-width:100px;">
+            ${secList(cls).map(s=>`<option value="${s}" ${s===sec?'selected':''}>${s}</option>`).join('')}
+          </select>
+          <input id="dmo" type="month" value="${month}" onchange="rDiary()" style="max-width:160px;">
+        </div>
+        ${canEdit ? `<button class="btn bp" onclick="addDiaryModal('${cls}','${sec}')">+ Add Homework</button>` : ''}
+      </div>
+
+      ${dates.length === 0 ? `
+        <div style="text-align:center;padding:40px;background:var(--bg2);border-radius:var(--rl);border:1px solid var(--border);">
+          <div style="font-size:32px;margin-bottom:10px;">📖</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text);">No diary entries yet</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:4px;">
+            ${canEdit ? 'Click "+ Add Homework" to post homework for students.' : 'No homework posted yet for this class.'}
+          </div>
+        </div>` :
+
+        dates.map(date => {
+          const dayEntries = byDate[date];
+          const dayName = new Date(date).toLocaleDateString('en-PK', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
+          return `
+          <div class="card" style="margin-bottom:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--text);">${dayName}</div>
+                <div style="font-size:11px;color:var(--text2);">Class ${cls}-${sec} · ${dayEntries.length} subject${dayEntries.length>1?'s':''}</div>
+              </div>
+              ${canEdit ? `<button class="btn bp bs" onclick="addDiaryModal('${cls}','${sec}','${date}')">+ Add</button>` : ''}
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">
+              ${dayEntries.map(e => `
+                <div style="border:1px solid var(--border);border-radius:var(--r);padding:12px;border-left:4px solid var(--${getSubjectBorderColor(e.subject)});">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                    <span class="chip chip-${getColor(e.subject)}" style="font-size:11px;">${e.subject}</span>
+                    ${canEdit ? `
+                      <div style="display:flex;gap:4px;">
+                        <button class="btn bs" onclick="editDiaryModal('${e.id}','${e.subject}','${e.date}','${e.due_date||''}','${cls}','${sec}')" style="padding:2px 7px;font-size:10px;">Edit</button>
+                        <button class="btn bs bd" onclick="delDiary('${e.id}')" style="padding:2px 7px;font-size:10px;">Del</button>
+                      </div>` : ''}
+                  </div>
+                  <div style="font-size:13px;color:var(--text);line-height:1.5;margin-bottom:6px;">${e.homework}</div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
+                    ${e.due_date ? `<span style="font-size:11px;color:var(--red);font-weight:500;">📅 Due: ${new Date(e.due_date).toLocaleDateString('en-PK',{month:'short',day:'numeric'})}</span>` : '<span></span>'}
+                    <span style="font-size:10px;color:var(--text3);">By ${e.created_by_name||'Teacher'}</span>
+                  </div>
+                </div>`).join('')}
+            </div>
+          </div>`;
+        }).join('')
+      }`;
+  };
+
+  function getSubjectBorderColor(sub) {
+    const s = (sub||'').toLowerCase();
+    if (s.includes('math')) return '--green';
+    if (s.includes('english')) return '--blue';
+    if (s.includes('physics')) return '--amber';
+    if (s.includes('chemistry')) return '--purple';
+    if (s.includes('urdu')) return '--red';
+    return '--border2';
+  }
+
+  window.rDiary = async () => {
+    const cls = v('dcl');
+    const sel = document.getElementById('dse');
+    const sl = secList(cls);
+    if (sel) sel.innerHTML = sl.map(s=>`<option value="${s}">${s}</option>`).join('');
+    await render(cls, sl[0], v('dmo'));
+  };
+
+  window.addDiaryModal = (cls, sec, date='') => {
+    openModal('Add Homework',
+      `<div class="field"><label>Class</label><input value="Class ${cls}-${sec}" disabled></div>
+       <div class="field"><label>Subject *</label>
+         <select id="dw-sub">
+           <option>English</option><option>Mathematics</option><option>Physics</option>
+           <option>Chemistry</option><option>Biology</option><option>Urdu</option>
+           <option>Islamiat</option><option>Pakistan Studies</option><option>Computer</option>
+           <option>Other</option>
+         </select>
+       </div>
+       <div class="field"><label>Date *</label><input type="date" id="dw-date" value="${date||td()}"></div>
+       <div class="field"><label>Due Date (optional)</label><input type="date" id="dw-due"></div>
+       <div class="field"><label>Homework / Task *</label>
+         <textarea id="dw-hw" rows="4" placeholder="Write homework details here e.g. Read chapter 5 and answer questions 1-5 on page 42..."></textarea>
+       </div>`,
+      `<button class="btn" onclick="closeModal()">Cancel</button>
+       <button class="btn bp" onclick="saveDiary('${cls}','${sec}')">Post Homework</button>`
+    );
+  };
+
+  window.editDiaryModal = (id, subject, date, dueDate, cls, sec) => {
+    openModal('Edit Homework',
+      `<div class="field"><label>Subject *</label>
+         <select id="dw-sub">
+           ${['English','Mathematics','Physics','Chemistry','Biology','Urdu','Islamiat','Pakistan Studies','Computer','Other']
+             .map(s=>`<option ${s===subject?'selected':''}>${s}</option>`).join('')}
+         </select>
+       </div>
+       <div class="field"><label>Date *</label><input type="date" id="dw-date" value="${date}"></div>
+       <div class="field"><label>Due Date</label><input type="date" id="dw-due" value="${dueDate||''}"></div>
+       <div class="field"><label>Homework *</label><textarea id="dw-hw" rows="4"></textarea></div>`,
+      `<button class="btn" onclick="closeModal()">Cancel</button>
+       <button class="btn bp" onclick="updateDiary('${id}','${cls}','${sec}')">Update</button>`
+    );
+    // fill textarea after modal opens
+    setTimeout(() => {
+      const el = document.getElementById('dw-hw');
+      if (el) {
+        const entry = entries?.find ? entries.find(e=>e.id===id) : null;
+        if (entry) el.value = entry.homework;
+      }
+    }, 100);
+  };
+
+  window.saveDiary = async (cls, sec) => {
+    const subject = v('dw-sub');
+    const date    = v('dw-date');
+    const due     = v('dw-due');
+    const hw      = document.getElementById('dw-hw')?.value?.trim();
+    if (!subject || !date || !hw) { toast('Fill all required fields', 'err'); return; }
+    const res = await POST('/diary', {
+      class: cls, section: sec, subject, date,
+      due_date: due || null,
+      homework: hw,
+      created_by_name: CU.name
+    });
+    if (res?.ok !== false) {
+      closeModal();
+      toast('Homework posted!', 'ok');
+      await render(cls, sec, v('dmo') || mon());
+    } else {
+      toast('Error posting homework', 'err');
+    }
+  };
+
+  window.updateDiary = async (id, cls, sec) => {
+    const hw = document.getElementById('dw-hw')?.value?.trim();
+    if (!hw) { toast('Enter homework', 'err'); return; }
+    await PUT('/diary/' + id, {
+      subject: v('dw-sub'), date: v('dw-date'),
+      due_date: v('dw-due') || null, homework: hw
+    });
+    closeModal();
+    toast('Updated!', 'ok');
+    await render(cls, sec, v('dmo') || mon());
+  };
+
+  window.delDiary = async (id) => {
+    if (!confirm('Delete this homework entry?')) return;
+    await DEL('/diary/' + id);
+    toast('Deleted');
+    await render(v('dcl') || fc, v('dse') || fs, v('dmo') || mon());
+  };
+
+  // store entries for edit
+  let entries = [];
+  const origRender = render;
+  await render();
 }
