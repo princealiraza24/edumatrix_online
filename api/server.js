@@ -40,6 +40,11 @@ app.get('/api/students', async (req, res) => {
 });
 
 app.post('/api/students', async (req, res) => {
+  // Check if roll_no already exists in same class only
+  const { data: existing } = await supabase.from('students')
+    .select('id').eq('school_id', SCHOOL_ID)
+    .eq('roll_no', req.body.roll_no).eq('class', req.body.class).single();
+  if (existing) return res.json({ ok: false, error: 'Roll number already exists in this class' });
   const { data, error } = await supabase.from('students').insert({ ...req.body, school_id: SCHOOL_ID }).select().single();
   res.json(error ? { ok: false, error: error.message } : { ok: true, data });
 });
@@ -282,3 +287,276 @@ app.get('/api/health', (_, res) => res.json({ status: 'ok', time: new Date().toI
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`EduMatrix API running on port ${PORT}`));
+
+// ── DIARIES ────────────────────────────────────────────────────────────────
+app.get('/api/diaries', async (req, res) => {
+  const { cls, section, date, month } = req.query;
+  let q = supabase.from('diaries').select('*').eq('school_id', SCHOOL_ID).order('date', { ascending: false }).order('created_at', { ascending: false });
+  if (cls) q = q.eq('class', cls);
+  if (section) q = q.eq('section', section);
+  if (date) q = q.eq('date', date);
+  if (month) q = q.gte('date', month+'-01').lte('date', month+'-31');
+  const { data, error } = await q;
+  res.json(error ? [] : data);
+});
+
+app.post('/api/diaries', async (req, res) => {
+  const { data, error } = await supabase.from('diaries')
+    .insert({ ...req.body, school_id: SCHOOL_ID })
+    .select().single();
+  res.json(error ? { ok: false, error: error.message } : { ok: true, data });
+});
+
+app.put('/api/diaries/:id', async (req, res) => {
+  const { error } = await supabase.from('diaries')
+    .update(req.body).eq('id', req.params.id).eq('school_id', SCHOOL_ID);
+  res.json(error ? { ok: false } : { ok: true });
+});
+
+app.delete('/api/diaries/:id', async (req, res) => {
+  await supabase.from('diaries').delete().eq('id', req.params.id).eq('school_id', SCHOOL_ID);
+  res.json({ ok: true });
+});
+
+// ── DIARY ──────────────────────────────────────────────────────────────────
+app.get('/api/diary', async (req, res) => {
+  const { cls, section, date } = req.query;
+  let q = supabase.from('diary').select('*, users(name)').eq('school_id', SCHOOL_ID).order('created_at', { ascending: false });
+  if (cls) q = q.eq('class', cls);
+  if (section) q = q.eq('section', section);
+  if (date) q = q.eq('date', date);
+  const { data, error } = await q;
+  res.json(error ? [] : data);
+});
+
+app.post('/api/diary', async (req, res) => {
+  const { data, error } = await supabase.from('diary')
+    .insert({ ...req.body, school_id: SCHOOL_ID })
+    .select().single();
+  res.json(error ? { ok: false, error: error.message } : { ok: true, data });
+});
+
+app.put('/api/diary/:id', async (req, res) => {
+  const { error } = await supabase.from('diary').update(req.body).eq('id', req.params.id).eq('school_id', SCHOOL_ID);
+  res.json(error ? { ok: false } : { ok: true });
+});
+
+app.delete('/api/diary/:id', async (req, res) => {
+  await supabase.from('diary').delete().eq('id', req.params.id).eq('school_id', SCHOOL_ID);
+  res.json({ ok: true });
+});
+
+// ── DIARY / HOMEWORK ────────────────────────────────────────────────────────
+app.get('/api/diary', async (req, res) => {
+  const { cls, section, date } = req.query;
+  let q = supabase.from('diary').select('*, users(name)').eq('school_id', SCHOOL_ID).order('date', { ascending: false });
+  if (cls) q = q.eq('class', cls);
+  if (section) q = q.eq('section', section);
+  if (date) q = q.eq('date', date);
+  const { data, error } = await q;
+  if (error) return res.json([]);
+  res.json(data.map(d => ({ ...d, created_by_name: d.users?.name || 'Admin' })));
+});
+
+app.post('/api/diary', async (req, res) => {
+  const { data, error } = await supabase.from('diary')
+    .insert({ ...req.body, school_id: SCHOOL_ID })
+    .select().single();
+  res.json(error ? { ok: false, error: error.message } : { ok: true, data });
+});
+
+app.put('/api/diary/:id', async (req, res) => {
+  const { error } = await supabase.from('diary').update(req.body).eq('id', req.params.id);
+  res.json(error ? { ok: false } : { ok: true });
+});
+
+app.delete('/api/diary/:id', async (req, res) => {
+  await supabase.from('diary').delete().eq('id', req.params.id);
+  res.json({ ok: true });
+});
+
+// ── DIARIES ────────────────────────────────────────────────────────────────
+app.get('/api/diaries', async (req, res) => {
+  const { cls, section, date } = req.query;
+  let q = supabase.from('diaries').select('*').eq('school_id', SCHOOL_ID).order('created_at', { ascending: false });
+  if (cls) q = q.eq('class', cls);
+  if (section) q = q.eq('section', section);
+  if (date) q = q.eq('date', date);
+  const { data, error } = await q;
+  res.json(error ? [] : data);
+});
+
+app.post('/api/diaries', async (req, res) => {
+  const { data, error } = await supabase.from('diaries').insert({ ...req.body, school_id: SCHOOL_ID }).select().single();
+  res.json(error ? { ok: false, error: error.message } : { ok: true, data });
+});
+
+app.put('/api/diaries/:id', async (req, res) => {
+  const { error } = await supabase.from('diaries').update(req.body).eq('id', req.params.id).eq('school_id', SCHOOL_ID);
+  res.json(error ? { ok: false } : { ok: true });
+});
+
+app.delete('/api/diaries/:id', async (req, res) => {
+  await supabase.from('diaries').delete().eq('id', req.params.id).eq('school_id', SCHOOL_ID);
+  res.json({ ok: true });
+});
+
+// ── DIARIES / HOMEWORK ────────────────────────────────────────────────────
+app.get('/api/diaries', async (req, res) => {
+  const { cls, section, date, month } = req.query;
+  let q = supabase.from('diaries').select('*, users(name)')
+    .eq('school_id', SCHOOL_ID)
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false });
+  if (cls) q = q.eq('class', cls);
+  if (section) q = q.eq('section', section);
+  if (date) q = q.eq('date', date);
+  if (month) q = q.gte('date', month + '-01').lte('date', month + '-31');
+  const { data, error } = await q;
+  res.json(error ? [] : data.map(d => ({ ...d, posted_by: d.users?.name || 'Admin' })));
+});
+
+app.post('/api/diaries', async (req, res) => {
+  const { data, error } = await supabase.from('diaries')
+    .insert({ ...req.body, school_id: SCHOOL_ID })
+    .select().single();
+  res.json(error ? { ok: false, error: error.message } : { ok: true, data });
+});
+
+app.put('/api/diaries/:id', async (req, res) => {
+  const { error } = await supabase.from('diaries')
+    .update(req.body).eq('id', req.params.id).eq('school_id', SCHOOL_ID);
+  res.json(error ? { ok: false } : { ok: true });
+});
+
+app.delete('/api/diaries/:id', async (req, res) => {
+  await supabase.from('diaries').delete().eq('id', req.params.id).eq('school_id', SCHOOL_ID);
+  res.json({ ok: true });
+});
+
+// ── DIARIES ────────────────────────────────────────────────────────────────
+app.get('/api/diaries', async (req, res) => {
+  const { cls, section, date } = req.query;
+  let q = supabase.from('diaries').select('*, users(name)').eq('school_id', SCHOOL_ID).order('date', { ascending: false });
+  if (cls) q = q.eq('class', cls);
+  if (section) q = q.eq('section', section);
+  if (date) q = q.eq('date', date);
+  const { data, error } = await q;
+  res.json(error ? [] : data.map(d => ({ ...d, created_by_name: d.users?.name || 'Admin' })));
+});
+
+app.post('/api/diaries', async (req, res) => {
+  const { data, error } = await supabase.from('diaries').insert({ ...req.body, school_id: SCHOOL_ID }).select().single();
+  res.json(error ? { ok: false, error: error.message } : { ok: true, data });
+});
+
+app.put('/api/diaries/:id', async (req, res) => {
+  const { error } = await supabase.from('diaries').update(req.body).eq('id', req.params.id).eq('school_id', SCHOOL_ID);
+  res.json(error ? { ok: false } : { ok: true });
+});
+
+app.delete('/api/diaries/:id', async (req, res) => {
+  await supabase.from('diaries').delete().eq('id', req.params.id).eq('school_id', SCHOOL_ID);
+  res.json({ ok: true });
+});
+
+// ── DIARY ──────────────────────────────────────────────────────────────────
+app.get('/api/diary', async (req, res) => {
+  const { cls, section, date, month } = req.query;
+  let q = supabase.from('diary')
+    .select('*, users(name)')
+    .eq('school_id', SCHOOL_ID)
+    .order('date', { ascending: false });
+  if (cls) q = q.eq('class', cls);
+  if (section) q = q.eq('section', section);
+  if (date) q = q.eq('date', date);
+  if (month) q = q.gte('date', month + '-01').lte('date', month + '-31');
+  const { data, error } = await q;
+  if (error) return res.json([]);
+  const result = data.map(d => ({ ...d, posted_by_name: d.users?.name || 'Admin' }));
+  res.json(result);
+});
+
+app.post('/api/diary', async (req, res) => {
+  const { data, error } = await supabase.from('diary')
+    .insert({ ...req.body, school_id: SCHOOL_ID })
+    .select().single();
+  res.json(error ? { ok: false, error: error.message } : { ok: true, data });
+});
+
+app.put('/api/diary/:id', async (req, res) => {
+  const { error } = await supabase.from('diary')
+    .update(req.body)
+    .eq('id', req.params.id)
+    .eq('school_id', SCHOOL_ID);
+  res.json(error ? { ok: false } : { ok: true });
+});
+
+app.delete('/api/diary/:id', async (req, res) => {
+  await supabase.from('diary').delete().eq('id', req.params.id).eq('school_id', SCHOOL_ID);
+  res.json({ ok: true });
+});
+
+// ── DIARY ──────────────────────────────────────────────────────────────────
+app.get('/api/diary', async (req, res) => {
+  const { cls, section, date, month } = req.query;
+  let q = supabase.from('diary').select('*, users(name)')
+    .eq('school_id', SCHOOL_ID)
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false });
+  if (cls)     q = q.eq('class', cls);
+  if (section) q = q.eq('section', section);
+  if (date)    q = q.eq('date', date);
+  if (month)   q = q.gte('date', month+'-01').lte('date', month+'-31');
+  const { data, error } = await q;
+  const result = (data||[]).map(d => ({ ...d, teacher_name: d.users?.name || 'Admin' }));
+  res.json(error ? [] : result);
+});
+
+app.post('/api/diary', async (req, res) => {
+  const { data, error } = await supabase.from('diary')
+    .insert({ ...req.body, school_id: SCHOOL_ID })
+    .select().single();
+  res.json(error ? { ok: false, error: error.message } : { ok: true, data });
+});
+
+app.put('/api/diary/:id', async (req, res) => {
+  const { error } = await supabase.from('diary')
+    .update(req.body).eq('id', req.params.id).eq('school_id', SCHOOL_ID);
+  res.json(error ? { ok: false } : { ok: true });
+});
+
+app.delete('/api/diary/:id', async (req, res) => {
+  await supabase.from('diary').delete().eq('id', req.params.id).eq('school_id', SCHOOL_ID);
+  res.json({ ok: true });
+});
+
+// ── DIARY ──────────────────────────────────────────────────────────────────
+app.get('/api/diary', async (req, res) => {
+  const { cls, section, date, month } = req.query;
+  let q = supabase.from('diaries').select('*').eq('school_id', SCHOOL_ID).order('date', { ascending: false });
+  if (cls) q = q.eq('class', cls);
+  if (section) q = q.eq('section', section);
+  if (date) q = q.eq('date', date);
+  if (month) q = q.gte('date', month + '-01').lte('date', month + '-31');
+  const { data, error } = await q;
+  res.json(error ? [] : data);
+});
+
+app.post('/api/diary', async (req, res) => {
+  const { data, error } = await supabase.from('diaries')
+    .insert({ ...req.body, school_id: SCHOOL_ID })
+    .select().single();
+  res.json(error ? { ok: false, error: error.message } : { ok: true, data });
+});
+
+app.put('/api/diary/:id', async (req, res) => {
+  const { error } = await supabase.from('diaries')
+    .update(req.body).eq('id', req.params.id).eq('school_id', SCHOOL_ID);
+  res.json(error ? { ok: false } : { ok: true });
+});
+
+app.delete('/api/diary/:id', async (req, res) => {
+  await supabase.from('diaries').delete().eq('id', req.params.id).eq('school_id', SCHOOL_ID);
+  res.json({ ok: true });
+});
