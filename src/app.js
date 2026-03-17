@@ -455,7 +455,8 @@ async function secStudents(c){
     const list=await GET('/students')||[];
     exportCSV(toCSV([['Roll','Name','Father','Class','Section','Contact','Parent Contact','Status'],...list.map(s=>[s.roll_no,s.name,s.father_name,s.class,s.section,s.contact,s.parent_contact,s.status])]),'students.csv');
   };
-  const sf=(s={})=>`<div class="fg">
+  // student form — accepts users list for linking dropdowns
+  const sf=(s={},stuUsers=[],parUsers=[])=>`<div class="fg">
     <div class="field"><label>Roll No *</label><input id="sf-r" value="${s.roll_no||''}"></div>
     <div class="field"><label>Name *</label><input id="sf-n" value="${s.name||''}"></div>
     <div class="field"><label>Father's Name</label><input id="sf-f" value="${s.father_name||''}"></div>
@@ -464,17 +465,58 @@ async function secStudents(c){
     <div class="field"><label>Date of Birth</label><input type="date" id="sf-d" value="${s.dob||''}"></div>
     <div class="field"><label>Class *</label><select id="sf-cl" onchange="updSec()">${clsOpts(s.class||'',false)}</select></div>
     <div class="field"><label>Section *</label><select id="sf-s">${s.class?secOpts(s.class,s.section||''):'<option>Select class first</option>'}</select></div>
+    <div class="field"><label>Link Student Account
+      <span style="font-size:10px;color:var(--text3);font-weight:400;"> — student login</span></label>
+      <select id="sf-stu-uid">
+        <option value="">-- None --</option>
+        ${stuUsers.map(u=>`<option value="${u.id}" ${s.student_user_id===u.id?'selected':''}>${u.name} (${u.username})</option>`).join('')}
+      </select>
+    </div>
+    <div class="field"><label>Link Parent Account
+      <span style="font-size:10px;color:var(--text3);font-weight:400;"> — parent login</span></label>
+      <select id="sf-par-uid">
+        <option value="">-- None --</option>
+        ${parUsers.map(u=>`<option value="${u.id}" ${s.parent_user_id===u.id?'selected':''}>${u.name} (${u.username})</option>`).join('')}
+      </select>
+    </div>
     <div class="field"><label>Status</label><select id="sf-st"><option value="Active" ${(s.status||'Active')==='Active'?'selected':''}>Active</option><option value="Inactive" ${s.status==='Inactive'?'selected':''}>Inactive</option></select></div>
   </div>`;
-  window.addStu=()=>openModal('Add Student',sf(),`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn bp" onclick="saveStu()">Save</button>`);
-  window.editStu=async(id)=>{const s=await GET('/students/'+id);openModal('Edit Student',sf(s||{}),`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn bp" onclick="saveStu('${id}')">Update</button>`);};
+
+  window.addStu=async()=>{
+    const users=await GET('/users')||[];
+    const stuUsers=users.filter(u=>u.role==='student');
+    const parUsers=users.filter(u=>u.role==='parent');
+    openModal('Add Student',sf({},stuUsers,parUsers),
+      `<button class="btn" onclick="closeModal()">Cancel</button>
+       <button class="btn bp" onclick="saveStu()">Save</button>`);
+  };
+
+  window.editStu=async(id)=>{
+    const s=await GET('/students/'+id);
+    const users=await GET('/users')||[];
+    const stuUsers=users.filter(u=>u.role==='student');
+    const parUsers=users.filter(u=>u.role==='parent');
+    openModal('Edit Student',sf(s||{},stuUsers,parUsers),
+      `<button class="btn" onclick="closeModal()">Cancel</button>
+       <button class="btn bp" onclick="saveStu('${id}')">Update</button>`);
+  };
+
   window.updSec=()=>{const el=document.getElementById('sf-s');if(el)el.innerHTML=secOpts(v('sf-cl'),'');};
+
   window.saveStu=async(id)=>{
-    const d={roll_no:v('sf-r'),name:v('sf-n'),father_name:v('sf-f'),class:v('sf-cl'),section:v('sf-s'),contact:v('sf-c'),parent_contact:v('sf-pc'),dob:v('sf-d'),status:v('sf-st')||'Active'};
+    const d={
+      roll_no:v('sf-r'),name:v('sf-n'),father_name:v('sf-f'),
+      class:v('sf-cl'),section:v('sf-s'),contact:v('sf-c'),
+      parent_contact:v('sf-pc'),dob:v('sf-d'),status:v('sf-st')||'Active',
+      student_user_id:v('sf-stu-uid')||null,
+      parent_user_id:v('sf-par-uid')||null
+    };
     if(!d.roll_no||!d.name||!d.class||!d.section){toast('Fill required fields','err');return;}
     const res=id?await PUT('/students/'+id,d):await POST('/students',d);
-    if(res?.ok!==false){closeModal();toast(id?'Updated!':'Added!','ok');rStu();}else toast('Error: '+(res?.error||'Failed'),'err');
+    if(res?.ok!==false){closeModal();toast(id?'Updated!':'Added!','ok');rStu();}
+    else toast('Error: '+(res?.error||'Failed'),'err');
   };
+
   window.delStu=async(id,name)=>{if(!confirm(`Delete ${name}?`))return;await DEL('/students/'+id);toast('Deleted');rStu();};
   await render();
 }
