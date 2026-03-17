@@ -25,22 +25,3 @@
     }
   ]
 }
-```
-
-4. Click **Commit changes**
-
----
-
-**Step 2 — Check public/src folder**
-
-Click on `src` inside the `public` folder and tell me if `app.js` and `style.css` are there.
-
----
-
-**Step 3 — After committing vercel.json:**
-
-Go to **Vercel → Deployments → Redeploy**
-
-Then test:
-```
-https://edumatrix-online.vercel.app/api/health
