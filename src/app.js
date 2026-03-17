@@ -1,0 +1,759 @@
+'use strict';
+
+// ── CONFIG ─────────────────────────────────────────────────────────────────
+// Change this to your Render API URL after deployment
+const API = window.location.hostname === 'localhost'
+  ? 'http://localhost:3001/api'
+  : '/api';
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let CU = null;
+let CLS = [];
+let NOTIFS = [];
+
+// ── API CALLS ──────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  try {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(API + path, opts);
+    return await res.json();
+  } catch(e) {
+    console.error('API error:', e);
+    return null;
+  }
+}
+const GET  = path       => api('GET',    path);
+const POST = (path, b)  => api('POST',   path, b);
+const PUT  = (path, b)  => api('PUT',    path, b);
+const DEL  = path       => api('DELETE', path);
+
+// ── ICONS ──────────────────────────────────────────────────────────────────
+const IC = {
+  grid: `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="7" y="1" width="5" height="5" rx="1"/><rect x="1" y="7" width="5" height="5" rx="1"/><rect x="7" y="7" width="5" height="5" rx="1"/></svg>`,
+  users:`<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5" cy="4" r="2.5"/><path d="M1 12c0-2.2 1.8-4 4-4s4 1.8 4 4"/><circle cx="10.5" cy="4" r="1.8"/><path d="M13 12c0-1.6-1.1-2.9-2.5-2.9"/></svg>`,
+  chk:  `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h9M2 7h6M2 10h4"/></svg>`,
+  card: `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="11" height="7" rx="1.2"/><path d="M1 6h11"/></svg>`,
+  bell: `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6.5 1a3.5 3.5 0 013.5 3.5V8l1.5 2H2L3.5 8V4.5A3.5 3.5 0 016.5 1z"/><path d="M5 10a1.5 1.5 0 003 0"/></svg>`,
+  doc:  `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 1h7a1 1 0 011 1v9a1 1 0 01-1 1H3a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M4.5 5h4M4.5 7.5h4M4.5 10h2"/></svg>`,
+  chart:`<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 11V7M5 11V4M8 11V2M11 11V5M12 11H1"/></svg>`,
+  cog:  `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="6.5" r="2.2"/><path d="M6.5 1v1.2M6.5 10.8V12M1 6.5h1.2M10.8 6.5H12M2.8 2.8l.9.9M9.3 9.3l.9.9M2.8 10.2l.9-.9M9.3 3.7l.9-.9"/></svg>`,
+  sms:  `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 1h11a1 1 0 011 1v7a1 1 0 01-1 1H4l-3 2V2a1 1 0 011-1z"/></svg>`,
+};
+
+const NAVS = {
+  admin:[
+    {lbl:'Main',    items:[{id:'dash',    ic:'grid', t:'Dashboard'}]},
+    {lbl:'Manage',  items:[{id:'students',ic:'users',t:'Students'},{id:'att',ic:'chk',t:'Attendance'},{id:'fees',ic:'card',t:'Fees'},{id:'ann',ic:'bell',t:'Announcements'},{id:'papers',ic:'doc',t:'Paper Info'},{id:'results',ic:'chart',t:'Results'}]},
+    {lbl:'Settings',items:[{id:'classes',ic:'cog',t:'Classes'},{id:'usermgmt',ic:'users',t:'Users'},{id:'sms',ic:'sms',t:'SMS Logs'}]},
+  ],
+  teacher:[
+    {lbl:'Portal',items:[{id:'t-dash',ic:'grid',t:'Dashboard'},{id:'att',ic:'chk',t:'Attendance'},{id:'results',ic:'chart',t:'Results'},{id:'papers',ic:'doc',t:'Papers'},{id:'ann',ic:'bell',t:'Notices'}]},
+  ],
+  student:[
+    {lbl:'My Portal',items:[{id:'s-dash',ic:'grid',t:'Dashboard'},{id:'s-att',ic:'chk',t:'My Attendance'},{id:'s-fees',ic:'card',t:'My Fees'},{id:'s-papers',ic:'doc',t:'Exam Schedule'},{id:'s-results',ic:'chart',t:'My Results'},{id:'ann',ic:'bell',t:'Notices'}]},
+  ],
+  parent:[
+    {lbl:"Child's Info",items:[{id:'p-dash',ic:'grid',t:'Overview'},{id:'s-att',ic:'chk',t:'Attendance'},{id:'s-fees',ic:'card',t:'Fees'},{id:'s-results',ic:'chart',t:'Results'},{id:'ann',ic:'bell',t:'Notices'}]},
+  ],
+};
+
+const TITLES={
+  dash:'Dashboard',students:'Students',att:'Attendance',fees:'Fees',ann:'Announcements',papers:'Paper Info',results:'Results',classes:'Classes',usermgmt:'Users',sms:'SMS Logs',
+  't-dash':'Dashboard','s-dash':'My Dashboard','p-dash':'Child Overview',
+  's-att':'My Attendance','s-fees':'My Fees','s-papers':'Exam Schedule','s-results':'My Results',
+};
+
+// ── UTILS ──────────────────────────────────────────────────────────────────
+const v    = id => { const e=document.getElementById(id); return e?e.value:''; };
+const chip = (t,c) => `<span class="chip chip-${c}">${t}</span>`;
+const fmt  = n => Number(n||0).toLocaleString('en-PK');
+const td   = () => new Date().toISOString().split('T')[0];
+const mon  = () => new Date().toISOString().slice(0,7);
+const toCSV= rows=>rows.map(r=>r.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+const grade= p=>p>=90?'A+':p>=80?'A':p>=65?'B+':p>=50?'B':p>=33?'C':'F';
+const gcol = p=>p>=80?'var(--green)':p>=50?'var(--blue)':'var(--red)';
+const p2c  = p=>p>=75?'var(--green)':p>=50?'var(--amber)':'var(--red)';
+const feeStatus=(due,paid)=>paid>=due?'Paid':paid>0?'Partial':'Unpaid';
+const feeChip=(due,paid)=>{const s=feeStatus(due,paid);return chip(s,{Paid:'green',Partial:'amber',Unpaid:'red'}[s]);};
+const pbar =(p,col)=>`<div style="font-size:11px;">${p}%</div><div class="pbar"><div class="pfill" style="width:${Math.min(p,100)}%;background:${col};"></div></div>`;
+const clsOpts=(sel='',all=true)=>(all?'<option value="">All Classes</option>':'')+CLS.map(c=>`<option value="${c.name}" ${c.name===sel?'selected':''}>Class ${c.name}</option>`).join('');
+const secOpts=(cls,sel='')=>{const f=CLS.find(c=>c.name===cls);const s=f?f.sections.split(',').map(s=>s.trim()):['A','B'];return s.map(x=>`<option value="${x}" ${x===sel?'selected':''}>${x}</option>`).join('');};
+const secList=(cls)=>{const f=CLS.find(c=>c.name===cls);return f?f.sections.split(',').map(s=>s.trim()):['A','B'];};
+
+function toast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast'+(type?' '+type:'');t.classList.remove('hidden');
+  setTimeout(()=>t.classList.add('hidden'),2800);
+}
+function openModal(title,html,foot=''){
+  document.getElementById('modal-title').textContent=title;
+  document.getElementById('modal-body').innerHTML=html;
+  document.getElementById('modal-foot').innerHTML=foot;
+  document.getElementById('modal-bg').classList.remove('hidden');
+}
+function closeModal(){document.getElementById('modal-bg').classList.add('hidden');}
+function printModal(){
+  const c=document.getElementById('print-area');if(!c)return;
+  const w=window.open('','_blank','width=700,height=800');
+  w.document.write(`<html><head><title>Print</title><style>body{font-family:sans-serif;padding:20px;font-size:12px;}table{width:100%;border-collapse:collapse;}th,td{padding:6px 10px;border:1px solid #ddd;text-align:left;}th{background:#f5f5f5;}h2{margin-bottom:8px;}</style></head><body>${c.innerHTML}<button onclick="window.print()" style="margin-top:14px;padding:8px 18px;background:#1a56db;color:#fff;border:none;border-radius:6px;cursor:pointer;">Print</button></body></html>`);
+  w.document.close();
+}
+function exportCSV(data, filename){
+  const blob=new Blob([data],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();
+}
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('open');
+}
+function toggleNotif(){
+  document.getElementById('notif-panel').classList.toggle('hidden');
+}
+
+// ── AUTH ───────────────────────────────────────────────────────────────────
+async function doLogin(){
+  const u=document.getElementById('l-user').value.trim();
+  const p=document.getElementById('l-pass').value.trim();
+  document.getElementById('l-load').classList.remove('hidden');
+  document.getElementById('l-err').classList.add('hidden');
+  const res=await POST('/login',{username:u,password:p});
+  document.getElementById('l-load').classList.add('hidden');
+  if(res?.ok){
+    CU=res.user;
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    await boot();
+  } else {
+    document.getElementById('l-err').classList.remove('hidden');
+  }
+}
+document.getElementById('l-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+function doLogout(){
+  CU=null;CLS=[];
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+}
+
+async function boot(){
+  CLS=await GET('/classes')||[];
+  const colors={admin:'#2563eb',teacher:'#166534',student:'#92400e',parent:'#991b1b'};
+  const av=CU.name.split(' ').map(w=>w[0]).slice(0,2).join('');
+  document.getElementById('sb-av').textContent=av;
+  document.getElementById('sb-av').style.background=colors[CU.role]||'#374151';
+  document.getElementById('sb-name').textContent=CU.name;
+  document.getElementById('sb-role').textContent=CU.role.charAt(0).toUpperCase()+CU.role.slice(1);
+  document.getElementById('sb-sub').textContent={admin:'Admin Portal',teacher:'Teacher Portal',student:'Student Portal',parent:'Parent Portal'}[CU.role]||'Portal';
+  document.getElementById('date-txt').textContent=new Date().toLocaleDateString('en-PK',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+  buildNav();
+  loadNotifs();
+  goSec(NAVS[CU.role][0].items[0].id);
+}
+
+function buildNav(){
+  const nav=document.getElementById('sb-nav');nav.innerHTML='';
+  (NAVS[CU.role]||[]).forEach(g=>{
+    const l=document.createElement('div');l.className='nav-lbl';l.textContent=g.lbl;nav.appendChild(l);
+    g.items.forEach(item=>{
+      const el=document.createElement('div');el.className='nav-item';el.id='nav-'+item.id;
+      el.innerHTML=`${IC[item.ic]||''}<span>${item.t}</span>`;
+      el.onclick=()=>{goSec(item.id);if(window.innerWidth<768)toggleSidebar();};
+      nav.appendChild(el);
+    });
+  });
+}
+
+async function loadNotifs(){
+  const ann=await GET('/announcements')||[];
+  NOTIFS=ann.slice(0,5).map(a=>({title:a.title,body:a.category+' — '+a.created_at.slice(0,10),unread:true}));
+  const cnt=NOTIFS.filter(n=>n.unread).length;
+  const badge=document.getElementById('notif-count');
+  badge.textContent=cnt;badge.classList.toggle('hidden',cnt===0);
+  document.getElementById('notif-panel').innerHTML=`
+    <div class="notif-head">Notifications <button class="btn bs" onclick="markRead()">Mark all read</button></div>
+    ${NOTIFS.map(n=>`<div class="notif-item ${n.unread?'unread':''}"><div class="notif-title">${n.title}</div><div class="notif-body">${n.body}</div></div>`).join('')||'<div style="padding:12px;font-size:12px;color:#9ca3af;">No notifications</div>'}`;
+}
+function markRead(){NOTIFS.forEach(n=>n.unread=false);document.getElementById('notif-count').classList.add('hidden');loadNotifs();}
+
+function goSec(id){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const ni=document.getElementById('nav-'+id);if(ni)ni.classList.add('active');
+  document.getElementById('page-title').textContent=TITLES[id]||id;
+  render(id);
+}
+
+async function render(id){
+  const c=document.getElementById('content');
+  c.innerHTML='<p style="padding:30px;color:#9ca3af;text-align:center;">Loading...</p>';
+  try{
+    if(id==='dash'||id==='t-dash') c.innerHTML=await secDash();
+    else if(id==='s-dash') c.innerHTML=await secStudentDash();
+    else if(id==='p-dash') c.innerHTML=await secParentDash();
+    else if(id==='students')  await secStudents(c);
+    else if(id==='att')       await secAtt(c);
+    else if(id==='fees')      await secFees(c);
+    else if(id==='ann')       await secAnn(c);
+    else if(id==='papers')    await secPapers(c);
+    else if(id==='results')   await secResults(c);
+    else if(id==='classes')   await secClasses(c);
+    else if(id==='usermgmt')  await secUsers(c);
+    else if(id==='sms')       await secSMS(c);
+    else if(id==='s-att')     await secMyAtt(c);
+    else if(id==='s-fees')    await secMyFees(c);
+    else if(id==='s-papers')  await secMyPapers(c);
+    else if(id==='s-results') await secMyResults(c);
+    else c.innerHTML='<div class="card"><p style="color:#9ca3af;">Coming soon.</p></div>';
+  }catch(e){ c.innerHTML=`<div class="card"><p style="color:var(--red);">Error: ${e.message}</p></div>`; console.error(e); }
+}
+
+// ── DASHBOARD ──────────────────────────────────────────────────────────────
+async function secDash(){
+  const [s, ann, paps] = await Promise.all([GET('/stats'), GET('/announcements'), GET('/papers')]);
+  const annH=(ann||[]).slice(0,3).map(a=>`<div class="ai"><div class="ai-meta">${chip(a.category,'blue')} ${(a.created_at||'').slice(0,10)}</div><div class="ai-title">${a.title}</div></div>`).join('')||'<p style="color:#9ca3af;font-size:12px;">No announcements.</p>';
+  const papH=(paps||[]).slice(0,4).map(p=>`<div class="ai"><div class="ai-meta">${chip('Class '+p.class,'blue')} ${p.exam_date||'TBD'}</div><div class="ai-title">${p.subject}</div><div style="font-size:11px;color:#9ca3af;">${p.hall||''} · ${p.start_time||''}</div></div>`).join('')||'<p style="color:#9ca3af;font-size:12px;">No exams scheduled.</p>';
+  return`<div class="stat-grid">
+    <div class="stat-card"><div class="stat-lbl">Total Students</div><div class="stat-val">${s?.total_students||0}</div><div class="stat-sub">Active enrolled</div></div>
+    <div class="stat-card"><div class="stat-lbl">Present Today</div><div class="stat-val" style="color:var(--green);">${s?.att_today||0}</div><div class="stat-sub">${td()}</div></div>
+    <div class="stat-card"><div class="stat-lbl">Fees Collected</div><div class="stat-val">Rs ${fmt(s?.fees_collected)}</div><div class="stat-sub">${mon()}</div></div>
+    <div class="stat-card"><div class="stat-lbl">Pending Fees</div><div class="stat-val" style="color:var(--red);">Rs ${fmt(s?.fees_pending)}</div><div class="stat-sub">${s?.defaulters||0} defaulters</div></div>
+  </div>
+  <div class="two-col">
+    <div class="card"><div class="card-title">Recent Announcements</div>${annH}</div>
+    <div class="card"><div class="card-title">Upcoming Exams</div>${papH}</div>
+  </div>`;
+}
+
+// ── STUDENT DASHBOARD ──────────────────────────────────────────────────────
+async function secStudentDash(){
+  const ann=await GET('/announcements')||[];
+  const paps=await GET('/papers')||[];
+  return`<div style="padding:14px 16px;background:var(--blue-l);border-radius:var(--r);margin-bottom:14px;font-size:13px;color:var(--blue-t);">
+    Welcome back, <strong>${CU.name}</strong>! Check your attendance, fees and exam schedule below.
+  </div>
+  <div class="two-col">
+    <div class="card"><div class="card-title">School Notices</div>${ann.slice(0,3).map(a=>`<div class="ai"><div class="ai-meta">${chip(a.category,'blue')} ${(a.created_at||'').slice(0,10)}</div><div class="ai-title">${a.title}</div></div>`).join('')||'<p style="color:#9ca3af;font-size:12px;">No notices.</p>'}</div>
+    <div class="card"><div class="card-title">Upcoming Exams</div>${paps.slice(0,4).map(p=>`<div class="ai"><div class="ai-meta">${chip('Class '+p.class,'blue')} ${p.exam_date||'TBD'}</div><div class="ai-title">${p.subject}</div></div>`).join('')||'<p style="color:#9ca3af;font-size:12px;">No exams.</p>'}</div>
+  </div>`;
+}
+
+// ── PARENT DASHBOARD ───────────────────────────────────────────────────────
+async function secParentDash(){
+  const ann=await GET('/announcements')||[];
+  const paps=await GET('/papers')||[];
+  return`<div style="padding:14px 16px;background:var(--green-l);border-radius:var(--r);margin-bottom:14px;font-size:13px;color:var(--green);">
+    Welcome, <strong>${CU.name}</strong>! Track your child's attendance, fees and results here.
+  </div>
+  <div class="two-col">
+    <div class="card"><div class="card-title">School Notices</div>${ann.slice(0,3).map(a=>`<div class="ai"><div class="ai-meta">${chip(a.category,'blue')} ${(a.created_at||'').slice(0,10)}</div><div class="ai-title">${a.title}</div></div>`).join('')||'<p style="color:#9ca3af;font-size:12px;">No notices.</p>'}</div>
+    <div class="card"><div class="card-title">Upcoming Exams</div>${paps.slice(0,4).map(p=>`<div class="ai"><div class="ai-meta">${chip('Class '+p.class,'blue')} ${p.exam_date||'TBD'}</div><div class="ai-title">${p.subject}</div></div>`).join('')||'<p style="color:#9ca3af;font-size:12px;">No exams.</p>'}</div>
+  </div>`;
+}
+
+// ── STUDENTS ───────────────────────────────────────────────────────────────
+async function secStudents(c){
+  const render=async(search='',cls='',sec='')=>{
+    const params=new URLSearchParams();
+    if(search)params.set('search',search);if(cls)params.set('cls',cls);if(sec)params.set('section',sec);
+    const list=await GET('/students?'+params)||[];
+    c.innerHTML=`<div class="card">
+      <div class="card-title">Students <span style="font-size:11px;font-weight:400;color:#9ca3af;">${list.length} found</span>
+        <div style="display:flex;gap:6px;">
+          <button class="btn bp" onclick="addStu()">+ Add</button>
+          <button class="btn" onclick="expStu()">Export CSV</button>
+        </div>
+      </div>
+      <div class="frow" style="margin-bottom:12px;">
+        <input id="ss" type="text" placeholder="Search..." value="${search}" oninput="rStu()">
+        <select id="sc" onchange="rStu()">${clsOpts(cls)}</select>
+        <select id="sx" onchange="rStu()"><option value="">All Sections</option>${cls?secOpts(cls,sec):''}</select>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Roll No</th><th>Name</th><th>Class</th><th>Father</th><th>Contact</th><th>Parent Contact</th><th>Status</th><th></th></tr></thead>
+        <tbody>${list.map(s=>`<tr>
+          <td>${s.roll_no}</td><td><strong>${s.name}</strong></td><td>Class ${s.class}-${s.section}</td>
+          <td>${s.father_name||'-'}</td><td>${s.contact||'-'}</td><td>${s.parent_contact||'-'}</td>
+          <td>${chip(s.status||'Active','green')}</td>
+          <td><button class="btn bs" onclick="editStu('${s.id}')">Edit</button>
+              <button class="btn bs bd" onclick="delStu('${s.id}','${s.name}')">Del</button></td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`;
+  };
+  window.rStu=async()=>{
+    const cls=v('sc');
+    const sx=document.getElementById('sx');
+    if(sx&&cls)sx.innerHTML='<option value="">All Sections</option>'+secOpts(cls,'');
+    await render(v('ss'),cls,v('sx'));
+  };
+  window.expStu=async()=>{
+    const list=await GET('/students')||[];
+    exportCSV(toCSV([['Roll','Name','Father','Class','Section','Contact','Parent Contact','Status'],...list.map(s=>[s.roll_no,s.name,s.father_name,s.class,s.section,s.contact,s.parent_contact,s.status])]),'students.csv');
+  };
+  const sf=(s={})=>`<div class="fg">
+    <div class="field"><label>Roll No *</label><input id="sf-r" value="${s.roll_no||''}"></div>
+    <div class="field"><label>Name *</label><input id="sf-n" value="${s.name||''}"></div>
+    <div class="field"><label>Father's Name</label><input id="sf-f" value="${s.father_name||''}"></div>
+    <div class="field"><label>Contact</label><input id="sf-c" value="${s.contact||''}"></div>
+    <div class="field"><label>Parent Contact (for SMS)</label><input id="sf-pc" value="${s.parent_contact||''}"></div>
+    <div class="field"><label>Date of Birth</label><input type="date" id="sf-d" value="${s.dob||''}"></div>
+    <div class="field"><label>Class *</label><select id="sf-cl" onchange="updSec()">${clsOpts(s.class||'',false)}</select></div>
+    <div class="field"><label>Section *</label><select id="sf-s">${s.class?secOpts(s.class,s.section||''):'<option>Select class first</option>'}</select></div>
+    <div class="field"><label>Status</label><select id="sf-st"><option value="Active" ${(s.status||'Active')==='Active'?'selected':''}>Active</option><option value="Inactive" ${s.status==='Inactive'?'selected':''}>Inactive</option></select></div>
+  </div>`;
+  window.addStu=()=>openModal('Add Student',sf(),`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn bp" onclick="saveStu()">Save</button>`);
+  window.editStu=async(id)=>{const s=await GET('/students/'+id);openModal('Edit Student',sf(s||{}),`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn bp" onclick="saveStu('${id}')">Update</button>`);};
+  window.updSec=()=>{const el=document.getElementById('sf-s');if(el)el.innerHTML=secOpts(v('sf-cl'),'');};
+  window.saveStu=async(id)=>{
+    const d={roll_no:v('sf-r'),name:v('sf-n'),father_name:v('sf-f'),class:v('sf-cl'),section:v('sf-s'),contact:v('sf-c'),parent_contact:v('sf-pc'),dob:v('sf-d'),status:v('sf-st')||'Active'};
+    if(!d.roll_no||!d.name||!d.class||!d.section){toast('Fill required fields','err');return;}
+    const res=id?await PUT('/students/'+id,d):await POST('/students',d);
+    if(res?.ok!==false){closeModal();toast(id?'Updated!':'Added!','ok');rStu();}else toast('Error: '+(res?.error||'Failed'),'err');
+  };
+  window.delStu=async(id,name)=>{if(!confirm(`Delete ${name}?`))return;await DEL('/students/'+id);toast('Deleted');rStu();};
+  await render();
+}
+
+// ── ATTENDANCE ─────────────────────────────────────────────────────────────
+async function secAtt(c){
+  const fc=CLS[0]?.name||'9',fs=secList(fc)[0]||'A';
+  const rAtt=async(cls=fc,sec=fs,date=td())=>{
+    const rows=await GET(`/attendance?cls=${cls}&section=${sec}&date=${date}`)||[];
+    const pr=rows.filter(r=>r.status==='Present').length,ab=rows.filter(r=>r.status==='Absent').length,la=rows.filter(r=>r.status==='Late').length;
+    c.innerHTML=`<div class="card">
+      <div class="card-title">Attendance
+        <div style="display:flex;gap:5px;flex-wrap:wrap;">${chip(pr+' Present','green')}${chip(ab+' Absent','red')}${chip(la+' Late','amber')}<button class="btn bs" onclick="expAtt('${cls}','${sec}','${date}')">Export</button></div>
+      </div>
+      <div class="frow" style="margin-bottom:12px;">
+        <select id="ac" onchange="rAtt2()">${CLS.map(cl=>`<option value="${cl.name}" ${cl.name===cls?'selected':''}>Class ${cl.name}</option>`).join('')}</select>
+        <select id="as" onchange="rAtt2()">${secList(cls).map(s=>`<option value="${s}" ${s===sec?'selected':''}>${s}</option>`).join('')}</select>
+        <input id="ad" type="date" value="${date}" onchange="rAtt2()">
+        <button class="btn bp" onclick="saveAtt()">Save & Send SMS</button>
+      </div>
+      ${rows.length===0?`<p style="color:#9ca3af;font-size:12px;">No students in Class ${cls}-${sec}.</p>`:`
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>#</th><th>Roll</th><th>Name</th><th style="text-align:center">Present</th><th style="text-align:center">Absent</th><th style="text-align:center">Late</th><th>Note</th></tr></thead>
+        <tbody>${rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.roll_no}</td><td>${r.name}</td>
+          <td style="text-align:center"><input type="radio" name="ar${r.id}" value="Present" ${(r.status||'Present')==='Present'?'checked':''}></td>
+          <td style="text-align:center"><input type="radio" name="ar${r.id}" value="Absent"  ${r.status==='Absent'?'checked':''}></td>
+          <td style="text-align:center"><input type="radio" name="ar${r.id}" value="Late"    ${r.status==='Late'?'checked':''}></td>
+          <td><input type="text" class="anote" data-id="${r.id}" value="${r.note||''}" placeholder="Note..." style="width:100%;padding:3px 7px;border:1px solid #e5e7eb;border-radius:4px;font-size:11px;"></td>
+        </tr>`).join('')}</tbody>
+      </table></div>`}
+    </div>
+    <div class="card"><div class="card-title">Monthly Summary — ${date.slice(0,7)} <button class="btn bs" onclick="expAttSum('${cls}','${sec}','${date.slice(0,7)}')">Export</button></div>
+      ${await attSum(cls,sec,date.slice(0,7))}
+    </div>`;
+  };
+  window.rAtt2=async()=>{
+    const cls=v('ac');const asel=document.getElementById('as');const sl=secList(cls);
+    if(asel)asel.innerHTML=sl.map(s=>`<option value="${s}">${s}</option>`).join('');
+    await rAtt(cls,sl[0],v('ad'));
+  };
+  window.saveAtt=async()=>{
+    const cls=v('ac'),sec=v('as'),date=v('ad');
+    const rows=await GET(`/attendance?cls=${cls}&section=${sec}&date=${date}`)||[];
+    const records=rows.map(r=>{
+      const sel=document.querySelector(`input[name="ar${r.id}"]:checked`);
+      const note=document.querySelector(`.anote[data-id="${r.id}"]`);
+      return{student_id:r.id,status:sel?sel.value:'Present',note:note?note.value:''};
+    });
+    await POST('/attendance',{records,date});
+    const absentCount=records.filter(r=>r.status==='Absent').length;
+    toast(`Saved! SMS sent to ${absentCount} absent student parents.`,'ok');
+  };
+  window.expAtt=async(cls,sec,date)=>{
+    const rows=await GET(`/attendance?cls=${cls}&section=${sec}&date=${date}`)||[];
+    exportCSV(toCSV([['Roll','Name','Status','Note'],...rows.map(r=>[r.roll_no,r.name,r.status||'',r.note||''])]),'att_'+date+'.csv');
+  };
+  window.expAttSum=async(cls,sec,month)=>{
+    const rows=await GET(`/attendance/summary?cls=${cls}&section=${sec}&month=${month}`)||[];
+    exportCSV(toCSV([['Roll','Name','Present','Absent','Late','%'],...rows.map(r=>[r.roll_no,r.name,r.present,r.absent,r.late,r.total_days>0?Math.round(r.present/r.total_days*100)+'%':'0%'])]),'att_sum_'+month+'.csv');
+  };
+  await rAtt();
+}
+async function attSum(cls,sec,month){
+  const rows=await GET(`/attendance/summary?cls=${cls}&section=${sec}&month=${month}`)||[];
+  if(!rows.length)return'<p style="color:#9ca3af;font-size:12px;">No data yet.</p>';
+  return`<div class="tbl-wrap"><table><thead><tr><th>Roll</th><th>Name</th><th>Present</th><th>Absent</th><th>Late</th><th>%</th></tr></thead>
+  <tbody>${rows.map(r=>{const p=r.total_days>0?Math.round(r.present/r.total_days*100):0;return`<tr><td>${r.roll_no}</td><td>${r.name}</td><td>${r.present}</td><td>${r.absent}</td><td>${r.late}</td><td style="min-width:90px;">${pbar(p,p2c(p))}</td></tr>`;}).join('')}</tbody></table></div>`;
+}
+
+// ── FEES ───────────────────────────────────────────────────────────────────
+async function secFees(c){
+  const rFees=async(cls='',month=mon())=>{
+    const list=await GET(`/fees?cls=${cls}&month=${month}`)||[];
+    const due=list.reduce((a,f)=>a+Number(f.amount_due),0),paid=list.reduce((a,f)=>a+Number(f.amount_paid),0);
+    c.innerHTML=`<div class="stat-grid">
+      <div class="stat-card"><div class="stat-lbl">Total Due</div><div class="stat-val">Rs ${fmt(due)}</div></div>
+      <div class="stat-card"><div class="stat-lbl">Collected</div><div class="stat-val" style="color:var(--green);">Rs ${fmt(paid)}</div></div>
+      <div class="stat-card"><div class="stat-lbl">Pending</div><div class="stat-val" style="color:var(--red);">Rs ${fmt(due-paid)}</div></div>
+      <div class="stat-card"><div class="stat-lbl">Defaulters</div><div class="stat-val" style="color:var(--amber);">${list.filter(f=>Number(f.amount_paid)===0).length}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Fee Records
+        <div style="display:flex;gap:6px;">
+          <button class="btn bp" onclick="genFees()">Generate Month</button>
+          <button class="btn" onclick="expFees('${month}')">Export</button>
+        </div>
+      </div>
+      <div class="frow" style="margin-bottom:12px;">
+        <select id="fc" onchange="rFees2()">${clsOpts(cls)}</select>
+        <input id="fm" type="month" value="${month}" onchange="rFees2()">
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Roll</th><th>Student</th><th>Class</th><th>Due</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr></thead>
+        <tbody>${list.map(f=>`<tr>
+          <td>${f.roll_no}</td><td>${f.name}</td><td>Class ${f.class}</td>
+          <td>Rs ${fmt(f.amount_due)}</td><td>Rs ${fmt(f.amount_paid)}</td><td>Rs ${fmt(Number(f.amount_due)-Number(f.amount_paid))}</td>
+          <td>${feeChip(Number(f.amount_due),Number(f.amount_paid))}</td>
+          <td><button class="btn bs bp" onclick="collectFee('${f.student_id}','${f.name}',${f.amount_due},${f.amount_paid},'${month}')">
+            ${Number(f.amount_paid)>=Number(f.amount_due)?'Receipt':'Collect'}
+          </button></td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`;
+  };
+  window.rFees2=()=>rFees(v('fc'),v('fm'));
+  window.genFees=()=>openModal('Generate Monthly Fees',
+    `<div class="field"><label>Month</label><input type="month" id="gm" value="${mon()}"></div>
+     <div class="field"><label>Amount (Rs)</label><input type="number" id="ga" value="1500"></div>
+     <div class="field"><label>For Class</label><select id="gc">${clsOpts()}</select></div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn bp" onclick="doGen()">Generate</button>`);
+  window.doGen=async()=>{
+    const res=await POST('/fees/generate',{month:v('gm'),amount_due:Number(v('ga')),cls:v('gc')});
+    if(res?.ok!==false){closeModal();toast(`Generated for ${res?.count||0} students`,'ok');rFees2();}
+  };
+  window.collectFee=(sid,name,due,paid,month)=>{
+    const bal=Number(due)-Number(paid);
+    openModal(bal<=0?'Fee Receipt':'Collect Fee',
+      bal<=0?receiptHtml(name,due,paid,month):
+      `<div class="field"><label>Student</label><input value="${name}" disabled></div>
+       <div class="field"><label>Balance Due</label><input value="Rs ${fmt(bal)}" disabled></div>
+       <div class="field"><label>Amount (Rs)</label><input type="number" id="ca" value="${bal}"></div>
+       <div class="field"><label>Method</label><select id="cm"><option>Cash</option><option>Bank Transfer</option><option>JazzCash</option><option>Easypaisa</option></select></div>`,
+      bal<=0?`<button class="btn" onclick="closeModal()">Close</button><button class="btn bp" onclick="printModal()">Print</button>`:
+      `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn bp" onclick="doColl('${sid}',${due},${paid},'${month}')">Save</button>`);
+  };
+  window.doColl=async(sid,due,prev,month)=>{
+    const newPaid=Math.min(Number(prev)+Number(v('ca')),Number(due));
+    await POST('/fees/upsert',{student_id:sid,month,amount_due:due,amount_paid:newPaid,paid_date:td(),payment_method:v('cm')||'Cash'});
+    closeModal();toast('Payment saved!','ok');rFees2();
+  };
+  window.expFees=async(month)=>{
+    const list=await GET(`/fees?month=${month}`)||[];
+    exportCSV(toCSV([['Roll','Name','Class','Due','Paid','Balance','Status'],...list.map(f=>[f.roll_no,f.name,f.class,f.amount_due,f.amount_paid,Number(f.amount_due)-Number(f.amount_paid),feeStatus(Number(f.amount_due),Number(f.amount_paid))])]),'fees_'+month+'.csv');
+  };
+  await rFees();
+}
+const receiptHtml=(name,due,paid,month)=>`<div class="receipt" id="print-area">
+  <div class="receipt-head"><h2>EduMatrix School</h2><p>Fee Receipt — ${month}</p></div>
+  <div class="rr"><span class="rl">Student</span><span>${name}</span></div>
+  <div class="rr"><span class="rl">Month</span><span>${month}</span></div>
+  <div class="rr"><span class="rl">Fee Due</span><span>Rs ${fmt(due)}</span></div>
+  <div class="rr"><span class="rl">Amount Paid</span><span>Rs ${fmt(paid)}</span></div>
+  <div class="rr"><span class="rl">Balance</span><span>Rs ${fmt(Number(due)-Number(paid))}</span></div>
+  <div class="rr"><span class="rl">Status</span><span>${feeStatus(Number(due),Number(paid))}</span></div>
+  <div class="rr"><span class="rl">Date</span><span>${td()}</span></div>
+</div>`;
+
+// ── ANNOUNCEMENTS ──────────────────────────────────────────────────────────
+async function secAnn(c){
+  const render=async()=>{
+    const list=await GET('/announcements')||[];
+    const cc={General:'blue',Urgent:'red',Finance:'amber',Exam:'purple',Meeting:'green'};
+    c.innerHTML=`<div class="two-col">
+      <div class="card" style="max-height:580px;overflow-y:auto;">
+        <div class="card-title">Announcements</div>
+        ${list.map(a=>`<div class="ai">
+          <div class="ai-meta">${chip(a.category,cc[a.category]||'blue')} ${(a.created_at||'').slice(0,10)}
+            ${CU.role==='admin'?`<button class="btn bs bd" style="margin-left:auto;" onclick="delAnn('${a.id}')">Del</button>`:''}
+          </div>
+          <div class="ai-title">${a.title}</div>
+          <div class="ai-body">${a.body||''}</div>
+        </div>`).join('')||'<p style="color:#9ca3af;font-size:12px;">No announcements.</p>'}
+      </div>
+      ${CU.role==='admin'?`<div class="card">
+        <div class="card-title">Post Announcement</div>
+        <div class="field"><label>Title *</label><input id="an-t" placeholder="Title..."></div>
+        <div class="field"><label>Category</label><select id="an-c"><option>General</option><option>Urgent</option><option>Finance</option><option>Exam</option><option>Meeting</option></select></div>
+        <div class="field"><label>Audience</label><select id="an-a"><option>Everyone</option><option>Teachers</option>${CLS.map(cl=>`<option>Class ${cl.name}</option>`).join('')}</select></div>
+        <div class="field"><label>Message</label><textarea id="an-b" rows="5" placeholder="Type here..."></textarea></div>
+        <button class="btn bp" style="width:100%;" onclick="postAnn()">Publish</button>
+      </div>`:'<div></div>'}
+    </div>`;
+  };
+  window.postAnn=async()=>{
+    if(!v('an-t')){toast('Title required','err');return;}
+    await POST('/announcements',{title:v('an-t'),body:v('an-b'),category:v('an-c'),audience:v('an-a')});
+    toast('Published!','ok');render();
+  };
+  window.delAnn=async(id)=>{if(!confirm('Delete?'))return;await DEL('/announcements/'+id);render();};
+  await render();
+}
+
+// ── PAPERS ─────────────────────────────────────────────────────────────────
+async function secPapers(c){
+  const render=async(cls='')=>{
+    const list=await GET('/papers'+(cls?'?cls='+cls:''))||[];
+    c.innerHTML=`<div class="card">
+      <div class="card-title">Exam Schedule
+        <div style="display:flex;gap:6px;">
+          ${CU.role==='admin'?`<button class="btn bp" onclick="addPaper()">+ Add</button>`:''}
+          <button class="btn" onclick="expPapers()">Export</button>
+        </div>
+      </div>
+      <div class="frow" style="margin-bottom:12px;">
+        <select id="pc" onchange="rPapers()">${clsOpts(cls)}</select>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Class</th><th>Subject</th><th>Code</th><th>Date</th><th>Time</th><th>Duration</th><th>Hall</th><th>Marks</th>${CU.role==='admin'?'<th></th>':''}</tr></thead>
+        <tbody>${list.map(p=>`<tr>
+          <td>${chip('Class '+p.class,'blue')}</td><td><strong>${p.subject}</strong></td>
+          <td style="font-family:monospace;font-size:11px;color:#9ca3af;">${p.paper_code||'-'}</td>
+          <td>${p.exam_date||'-'}</td><td>${p.start_time||'-'}</td><td>${p.duration||'-'}</td><td>${p.hall||'-'}</td><td>${p.total_marks}</td>
+          ${CU.role==='admin'?`<td><button class="btn bs bd" onclick="delPaper('${p.id}')">Del</button></td>`:''}
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`;
+  };
+  window.rPapers=()=>render(v('pc'));
+  window.addPaper=()=>openModal('Add Paper',
+    `<div class="fg">
+      <div class="field"><label>Class *</label><select id="pf-c">${clsOpts('',false)}</select></div>
+      <div class="field"><label>Subject *</label><input id="pf-s" placeholder="e.g. Mathematics"></div>
+      <div class="field"><label>Paper Code</label><input id="pf-co"></div>
+      <div class="field"><label>Exam Date</label><input type="date" id="pf-d"></div>
+      <div class="field"><label>Start Time</label><input id="pf-t" value="09:00"></div>
+      <div class="field"><label>Duration</label><input id="pf-du" value="3 hrs"></div>
+      <div class="field"><label>Hall</label><input id="pf-h" placeholder="e.g. Hall A"></div>
+      <div class="field"><label>Total Marks</label><input type="number" id="pf-m" value="100"></div>
+    </div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn bp" onclick="savePaper()">Add</button>`);
+  window.savePaper=async()=>{
+    const d={class:v('pf-c'),subject:v('pf-s'),paper_code:v('pf-co'),exam_date:v('pf-d'),start_time:v('pf-t'),duration:v('pf-du'),hall:v('pf-h'),total_marks:Number(v('pf-m'))||100};
+    if(!d.class||!d.subject){toast('Class and subject required','err');return;}
+    await POST('/papers',d);closeModal();toast('Added!','ok');render();
+  };
+  window.delPaper=async(id)=>{if(!confirm('Delete?'))return;await DEL('/papers/'+id);render();};
+  window.expPapers=async()=>{
+    const list=await GET('/papers')||[];
+    exportCSV(toCSV([['Class','Subject','Code','Date','Time','Duration','Hall','Marks'],...list.map(p=>[p.class,p.subject,p.paper_code,p.exam_date,p.start_time,p.duration,p.hall,p.total_marks])]),'papers.csv');
+  };
+  await render();
+}
+
+// ── RESULTS ────────────────────────────────────────────────────────────────
+async function secResults(c){
+  const papers=await GET('/papers')||[];
+  const fc=CLS[0]?.name||'9',fs=secList(fc)[0]||'A';
+  const rRes=async(cls=fc,sec=fs,pid=papers[0]?.id)=>{
+    if(!pid){c.innerHTML='<div class="card"><p style="color:#9ca3af;">No papers found.</p></div>';return;}
+    const rows=await GET(`/results?cls=${cls}&section=${sec}&paper_id=${pid}`)||[];
+    const paper=papers.find(p=>p.id===pid);
+    const sl=secList(cls);
+    c.innerHTML=`<div class="card">
+      <div class="card-title">Results
+        <div style="display:flex;gap:6px;">
+          <button class="btn bp" onclick="saveRes('${pid}')">Save</button>
+          <button class="btn" onclick="expRes('${cls}','${sec}','${pid}')">Export</button>
+          <button class="btn" onclick="printRep('${cls}','${sec}')">Print Report</button>
+        </div>
+      </div>
+      <div class="frow" style="margin-bottom:12px;">
+        <select id="rcl" onchange="rRes2()">${CLS.map(cl=>`<option value="${cl.name}" ${cl.name===cls?'selected':''}>Class ${cl.name}</option>`).join('')}</select>
+        <select id="rse" onchange="rRes2()">${sl.map(s=>`<option value="${s}" ${s===sec?'selected':''}>${s}</option>`).join('')}</select>
+        <select id="rpa" onchange="rRes2()">${papers.map(p=>`<option value="${p.id}" ${p.id===pid?'selected':''}>Class ${p.class} — ${p.subject}</option>`).join('')}</select>
+      </div>
+      ${rows.length===0?`<p style="color:#9ca3af;font-size:12px;">No students.</p>`:`
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Roll</th><th>Name</th><th>Max</th><th>Obtained</th><th>%</th><th>Grade</th><th>Result</th></tr></thead>
+        <tbody>${rows.map(r=>{
+          const ob=Number(r.marks_obtained)||0,p=Math.round(ob/(paper?.total_marks||100)*100);
+          return`<tr><td>${r.roll_no}</td><td>${r.name}</td><td>${paper?.total_marks||100}</td>
+            <td><input type="number" class="rm" data-id="${r.id}" value="${ob}" min="0" max="${paper?.total_marks||100}" style="width:65px;padding:4px 7px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px;" oninput="updGr(this,${paper?.total_marks||100})"></td>
+            <td class="rp-${r.id}">${p}%</td>
+            <td class="rg-${r.id}" style="color:${gcol(p)};font-weight:600;">${grade(p)}</td>
+            <td class="rf-${r.id}">${chip(ob>=(paper?.total_marks||100)*0.33?'Pass':'Fail',ob>=(paper?.total_marks||100)*0.33?'green':'red')}</td>
+          </tr>`;}).join('')}
+        </tbody>
+      </table></div>`}
+    </div>`;
+  };
+  window.updGr=(inp,total)=>{
+    const sid=inp.dataset.id,ob=Number(inp.value)||0,p=Math.round(ob/total*100),pf=ob>=total*0.33;
+    const pg=document.querySelector(`.rp-${sid}`),gg=document.querySelector(`.rg-${sid}`),fg=document.querySelector(`.rf-${sid}`);
+    if(pg)pg.textContent=p+'%';if(gg){gg.textContent=grade(p);gg.style.color=gcol(p);}
+    if(fg)fg.innerHTML=chip(pf?'Pass':'Fail',pf?'green':'red');
+  };
+  window.rRes2=async()=>{
+    const cls=v('rcl');const sel=document.getElementById('rse');const sl=secList(cls);
+    if(sel)sel.innerHTML=sl.map(s=>`<option value="${s}">${s}</option>`).join('');
+    await rRes(cls,sl[0],v('rpa'));
+  };
+  window.saveRes=async(pid)=>{
+    const recs=[...document.querySelectorAll('.rm')].map(i=>({student_id:i.dataset.id,marks_obtained:Number(i.value)||0}));
+    await POST('/results',{records:recs,paper_id:pid});toast('Results saved!','ok');
+  };
+  window.expRes=async(cls,sec,pid)=>{
+    const rows=await GET(`/results?cls=${cls}&section=${sec}&paper_id=${pid}`)||[];
+    const paper=papers.find(p=>p.id===pid);
+    exportCSV(toCSV([['Roll','Name','Max','Obtained','%','Grade'],...rows.map(r=>{const p=Math.round((Number(r.marks_obtained)||0)/(paper?.total_marks||100)*100);return[r.roll_no,r.name,paper?.total_marks||100,r.marks_obtained||0,p+'%',grade(p)];})]),`results_${cls}${sec}.csv`);
+  };
+  window.printRep=async(cls,sec)=>{
+    const rows=await GET(`/results/report?cls=${cls}&section=${sec}`)||[];
+    const pl=papers.filter(p=>p.class===cls);
+    const html=`<div id="print-area">
+      <h2 style="text-align:center;margin-bottom:8px;">EduMatrix School — Result Report</h2>
+      <p style="text-align:center;font-size:12px;margin-bottom:14px;">Class ${cls}-${sec} | ${td()}</p>
+      <table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead><tr style="background:#f3f4f6;"><th>Roll</th><th>Name</th>${pl.map(p=>`<th>${p.subject}</th>`).join('')}<th>Total</th><th>%</th><th>Grade</th></tr></thead>
+        <tbody>${rows.map(r=>{
+          const sc={};(r.scores||'').split(',').forEach(s=>{const[sub,rest]=s.split(':');if(sub&&rest){const[ob,mx]=rest.split('/');sc[sub]={ob:Number(ob),mx:Number(mx)};}});
+          let tot=0,mx=0;const cells=pl.map(p=>{const s=sc[p.subject]||{ob:0,mx:p.total_marks};tot+=s.ob;mx+=s.mx;return`<td>${s.ob}/${s.mx}</td>`;}).join('');
+          const p=mx>0?Math.round(tot/mx*100):0;
+          return`<tr><td>${r.roll_no}</td><td>${r.name}</td>${cells}<td><b>${tot}/${mx}</b></td><td>${p}%</td><td>${grade(p)}</td></tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+    openModal('Result Report',html,`<button class="btn" onclick="closeModal()">Close</button><button class="btn bp" onclick="printModal()">Print</button>`);
+  };
+  await rRes();
+}
+
+// ── STUDENT/PARENT VIEWS ───────────────────────────────────────────────────
+async function secMyAtt(c){ c.innerHTML=`<div class="card"><div class="card-title">My Attendance</div><p style="color:#9ca3af;font-size:12px;">Contact admin to link your student account.</p></div>`; }
+async function secMyFees(c){ c.innerHTML=`<div class="card"><div class="card-title">My Fees</div><p style="color:#9ca3af;font-size:12px;">Contact admin to link your student account.</p></div>`; }
+async function secMyPapers(c){
+  const list=await GET('/papers')||[];
+  c.innerHTML=`<div class="card"><div class="card-title">Exam Schedule</div>
+  <div class="tbl-wrap"><table><thead><tr><th>Class</th><th>Subject</th><th>Date</th><th>Time</th><th>Hall</th></tr></thead>
+  <tbody>${list.map(p=>`<tr><td>${chip('Class '+p.class,'blue')}</td><td><strong>${p.subject}</strong></td><td>${p.exam_date||'-'}</td><td>${p.start_time||'-'}</td><td>${p.hall||'-'}</td></tr>`).join('')}</tbody>
+  </table></div></div>`;
+}
+async function secMyResults(c){ c.innerHTML=`<div class="card"><div class="card-title">My Results</div><p style="color:#9ca3af;font-size:12px;">Contact admin to link your student account.</p></div>`; }
+
+// ── CLASSES ────────────────────────────────────────────────────────────────
+async function secClasses(c){
+  const render=async()=>{
+    CLS=await GET('/classes')||[];
+    const warn=CLS.length===0?`<div style="padding:14px;background:var(--amber-l);border-radius:var(--r);margin-bottom:14px;font-size:13px;color:var(--amber);"><strong>No classes yet!</strong> Add your classes below.</div>`:'';
+    let rows='';
+    for(const cl of CLS){
+      const secs=cl.sections.split(',').map(s=>s.trim());
+      rows+=`<tr><td><strong>Class ${cl.name}</strong></td><td>${secs.map(s=>chip(s,'blue')).join(' ')}</td>
+        <td><button class="btn bs" onclick="doEditCls('${cl.id}')">Edit</button><button class="btn bs bd" onclick="doDelCls('${cl.id}','${cl.name}')">Delete</button></td></tr>`;
+    }
+    window._cls={};CLS.forEach(cl=>window._cls[cl.id]={...cl});
+    c.innerHTML=warn+`
+    <div class="card">
+      <div class="card-title">Add New Class</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+        <div style="flex:1;min-width:150px;"><label style="display:block;font-size:12px;color:var(--text2);margin-bottom:4px;">Class Name *</label><input type="text" id="nc-name" placeholder="e.g. 6, 7, KG, Nursery" style="width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;"></div>
+        <div style="flex:1;min-width:150px;"><label style="display:block;font-size:12px;color:var(--text2);margin-bottom:4px;">Sections *</label><input type="text" id="nc-sec" value="A,B" style="width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;"></div>
+        <button class="btn bp" onclick="doAddCls()" style="height:36px;">+ Add Class</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Bulk Add</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+        <div style="flex:2;min-width:180px;"><label style="display:block;font-size:12px;color:var(--text2);margin-bottom:4px;">Class Names (comma separated)</label><input type="text" id="bk-names" placeholder="e.g. 6,7,8,9,10" style="width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;"></div>
+        <div style="flex:1;min-width:100px;"><label style="display:block;font-size:12px;color:var(--text2);margin-bottom:4px;">Sections</label><input type="text" id="bk-secs" value="A,B" style="width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;"></div>
+        <button class="btn bp" onclick="doBulkCls()" style="height:36px;">Add All</button>
+      </div>
+    </div>
+    ${CLS.length>0?`<div class="card"><div class="card-title">All Classes</div>
+    <div class="tbl-wrap"><table><thead><tr><th>Class</th><th>Sections</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div></div>`:''}`;
+
+    window.doAddCls=async()=>{
+      const name=document.getElementById('nc-name').value.trim();
+      const sections=document.getElementById('nc-sec').value.trim();
+      if(!name){toast('Enter class name!','err');document.getElementById('nc-name').focus();return;}
+      const res=await POST('/classes',{name,sections:sections||'A,B'});
+      if(res?.ok!==false){document.getElementById('nc-name').value='';toast('Class '+name+' added!','ok');CLS=await GET('/classes')||[];render();}
+      else toast('Error — class may already exist','err');
+    };
+    window.doBulkCls=async()=>{
+      const names=document.getElementById('bk-names').value.split(',').map(s=>s.trim()).filter(Boolean);
+      const secs=document.getElementById('bk-secs').value.trim()||'A,B';
+      if(!names.length){toast('Enter class names','err');return;}
+      let added=0;for(const n of names){const r=await POST('/classes',{name:n,sections:secs});if(r?.ok!==false)added++;}
+      CLS=await GET('/classes')||[];toast('Added '+added+' classes!','ok');render();
+    };
+    window.doEditCls=(id)=>{
+      const cl=window._cls[id];if(!cl)return;
+      openModal('Edit Class',
+        `<div class="field"><label>Class Name *</label><input id="ec-n" value="${cl.name}" style="width:100%;"></div>
+         <div class="field"><label>Sections *</label><input id="ec-s" value="${cl.sections}" style="width:100%;"></div>`,
+        `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn bp" onclick="doSaveEditCls('${id}')">Update</button>`);
+    };
+    window.doSaveEditCls=async(id)=>{
+      const res=await PUT('/classes/'+id,{name:v('ec-n').trim(),sections:v('ec-s').trim()});
+      if(res?.ok!==false){closeModal();toast('Updated!','ok');CLS=await GET('/classes')||[];render();}
+    };
+    window.doDelCls=async(id,name)=>{
+      if(!confirm('Delete Class '+name+'?'))return;
+      await DEL('/classes/'+id);CLS=await GET('/classes')||[];toast('Deleted');render();
+    };
+  };
+  await render();
+}
+
+// ── USERS ──────────────────────────────────────────────────────────────────
+async function secUsers(c){
+  const render=async()=>{
+    const users=await GET('/users')||[];
+    c.innerHTML=`<div class="card">
+      <div class="card-title">User Accounts <button class="btn bp" onclick="addUser()">+ Add User</button></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Actions</th></tr></thead>
+      <tbody>${users.map(u=>`<tr><td><strong>${u.name}</strong></td><td style="font-family:monospace;">${u.username}</td>
+        <td>${chip(u.role.charAt(0).toUpperCase()+u.role.slice(1),{admin:'blue',teacher:'green',student:'amber',parent:'purple'}[u.role]||'gray')}</td>
+        <td><button class="btn bs" onclick="editUser('${u.id}','${u.name}','${u.username}','${u.role}')">Edit</button>
+        ${u.username!=='admin'?`<button class="btn bs bd" onclick="delUser('${u.id}','${u.name}')">Del</button>`:''}</td></tr>`).join('')}
+      </tbody></table></div>
+    </div>`;
+    const uf=(u={})=>`<div class="field"><label>Full Name *</label><input id="uf-n" value="${u.name||''}"></div>
+      <div class="field"><label>Username *</label><input id="uf-u" value="${u.username||''}"></div>
+      <div class="field"><label>Password ${u.id?'(blank=keep)':'*'}</label><input type="password" id="uf-p"></div>
+      <div class="field"><label>Role</label><select id="uf-r">
+        <option value="admin" ${(u.role||'')==='admin'?'selected':''}>Admin</option>
+        <option value="teacher" ${(u.role||'')==='teacher'?'selected':''}>Teacher</option>
+        <option value="student" ${(u.role||'')==='student'?'selected':''}>Student</option>
+        <option value="parent" ${(u.role||'')==='parent'?'selected':''}>Parent</option>
+      </select></div>
+      <div class="field"><label>Contact / Phone</label><input id="uf-c" value="${u.contact||''}"></div>`;
+    window.addUser=()=>openModal('Add User',uf(),`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn bp" onclick="saveUser()">Add</button>`);
+    window.editUser=(id,name,username,role)=>openModal('Edit User',uf({id,name,username,role}),`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn bp" onclick="saveUser('${id}')">Update</button>`);
+    window.saveUser=async(id)=>{
+      const d={name:v('uf-n'),username:v('uf-u'),password:v('uf-p'),role:v('uf-r'),contact:v('uf-c')};
+      if(!d.name||!d.username){toast('Fill required fields','err');return;}
+      if(!id&&!d.password){toast('Password required','err');return;}
+      const res=id?await PUT('/users/'+id,d):await POST('/users',d);
+      if(res?.ok!==false){closeModal();toast('Saved!','ok');render();}else toast('Error: '+(res?.error||'Failed'),'err');
+    };
+    window.delUser=async(id,name)=>{if(!confirm(`Delete ${name}?`))return;await DEL('/users/'+id);toast('Deleted');render();};
+  };
+  await render();
+}
+
+// ── SMS LOGS ───────────────────────────────────────────────────────────────
+async function secSMS(c){
+  const logs=await GET('/sms/logs')||[];
+  c.innerHTML=`<div class="card">
+    <div class="card-title">SMS Logs <span style="font-size:11px;font-weight:400;color:#9ca3af;">${logs.length} messages sent</span>
+      <button class="btn bp" onclick="testSMS()">Send Test SMS</button>
+    </div>
+    ${logs.length===0?'<p style="color:#9ca3af;font-size:12px;">No SMS sent yet. SMS are sent automatically when attendance is marked absent.</p>':
+    `<div class="tbl-wrap"><table><thead><tr><th>Recipient</th><th>Message</th><th>Status</th><th>Time</th></tr></thead>
+    <tbody>${logs.map(l=>`<tr><td>${l.recipient}</td><td style="max-width:300px;font-size:11px;">${l.message}</td><td>${chip(l.status,'green')}</td><td style="font-size:11px;color:#9ca3af;">${(l.created_at||'').slice(0,16)}</td></tr>`).join('')}</tbody>
+    </table></div>`}
+  </div>`;
+  window.testSMS=()=>openModal('Send Test SMS',
+    `<div class="field"><label>Phone Number</label><input id="sms-to" placeholder="e.g. 0300-1234567"></div>
+     <div class="field"><label>Message</label><textarea id="sms-msg" rows="3">Test message from EduMatrix School System.</textarea></div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn bp" onclick="doTestSMS()">Send</button>`);
+  window.doTestSMS=async()=>{
+    await POST('/sms/test',{to:v('sms-to'),message:v('sms-msg')});
+    closeModal();toast('Test SMS sent!','ok');secSMS(c);
+  };
+}
