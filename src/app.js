@@ -1,5 +1,46 @@
 'use strict';
 
+// ── PWA Install ────────────────────────────────────────────────────────────
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Show install banner after 3 seconds
+  setTimeout(() => {
+    const banner = document.getElementById('install-banner');
+    if (banner && !localStorage.getItem('installDismissed')) {
+      banner.classList.add('show');
+    }
+  }, 3000);
+});
+
+window.installApp = async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const result = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    document.getElementById('install-banner').classList.remove('show');
+    if (result.outcome === 'accepted') {
+      toast('EduMatrix installed on your phone!', 'ok');
+    }
+  } else {
+    // iOS instructions
+    toast('On iPhone: tap Share → Add to Home Screen', 'ok');
+  }
+};
+
+window.dismissInstall = () => {
+  document.getElementById('install-banner').classList.remove('show');
+  localStorage.setItem('installDismissed', '1');
+};
+
+window.addEventListener('appinstalled', () => {
+  toast('EduMatrix installed successfully!', 'ok');
+  deferredPrompt = null;
+});
+
+
 // ── CONFIG ─────────────────────────────────────────────────────────────────
 // Change this to your Render API URL after deployment
 const API = window.location.hostname === 'localhost'
@@ -39,6 +80,7 @@ const IC = {
   chart:`<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 11V7M5 11V4M8 11V2M11 11V5M12 11H1"/></svg>`,
   cog:  `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="6.5" r="2.2"/><path d="M6.5 1v1.2M6.5 10.8V12M1 6.5h1.2M10.8 6.5H12M2.8 2.8l.9.9M9.3 9.3l.9.9M2.8 10.2l.9-.9M9.3 3.7l.9-.9"/></svg>`,
   sms:  `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 1h11a1 1 0 011 1v7a1 1 0 01-1 1H4l-3 2V2a1 1 0 011-1z"/></svg>`,
+  book: `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 1h9a1 1 0 011 1v9a1 1 0 01-1 1H2a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M4 4h5M4 6.5h5M4 9h3"/></svg>`,
   diary:`<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 1h9a1 1 0 011 1v9a1 1 0 01-1 1H2a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M4 4h5M4 6.5h5M4 9h3"/><path d="M1 4h2M1 6.5h2M1 9h2"/></svg>`,
   book: `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 1h9a1 1 0 011 1v9a1 1 0 01-1 1H2a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M4 4h5M4 6.5h5M4 9h3"/><path d="M1 4h12"/></svg>`,
   diary:`<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 1h9a1 1 0 011 1v9a1 1 0 01-1 1H2a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M4 4h5M4 6.5h5M4 9h3"/><path d="M1 4h2"/></svg>`,
@@ -50,6 +92,7 @@ const NAVS = {
     {lbl:'Manage',  items:[{id:'students',ic:'users',t:'Students'},{id:'att',ic:'chk',t:'Attendance'},{id:'fees',ic:'card',t:'Fees'},{id:'ann',ic:'bell',t:'Announcements'},{id:'diary',ic:'diary',t:'Diary'},{id:'papers',ic:'doc',t:'Paper Info'},{id:'results',ic:'chart',t:'Results'}]},
     {lbl:'Diary',  items:[{id:'diary',ic:'bell',t:'Class Diary'}]},
     {lbl:'Diary',   items:[{id:'diary',    ic:'book',t:'Class Diary'}]},
+    {lbl:'Academics',items:[{id:'diary',ic:'book',t:'Diary / Homework'}]},
     {lbl:'Settings',items:[{id:'classes',ic:'cog',t:'Classes'},{id:'usermgmt',ic:'users',t:'Users'},{id:'sms',ic:'sms',t:'SMS Logs'}]},
   ],
   teacher:[
@@ -63,7 +106,8 @@ const NAVS = {
   ],
 };
 
-const TITLES={diary:'Class Diary',diary:'Daily Diary',
+const TITLES={
+  diary:'Diary & Homework',diary:'Class Diary',diary:'Daily Diary',
   dash:'Dashboard',students:'Students',att:'Attendance',fees:'Fees',ann:'Announcements',papers:'Paper Info',results:'Results',classes:'Classes',usermgmt:'Users',sms:'SMS Logs',
   diary:'Class Diary',
   't-dash':'Dashboard','s-dash':'My Dashboard','p-dash':'Child Overview',
@@ -153,8 +197,30 @@ async function boot(){
   document.getElementById('sb-sub').textContent={admin:'Admin Portal',teacher:'Teacher Portal',student:'Student Portal',parent:'Parent Portal'}[CU.role]||'Portal';
   document.getElementById('date-txt').textContent=new Date().toLocaleDateString('en-PK',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
   buildNav();
+  buildMobileNav();
   loadNotifs();
   goSec(NAVS[CU.role][0].items[0].id);
+}
+
+
+// ── Mobile Bottom Nav ─────────────────────────────────────────────────────
+function buildMobileNav() {
+  const mobileItems = {
+    admin:   [{id:'dash',ic:'grid',t:'Home'},{id:'students',ic:'users',t:'Students'},{id:'att',ic:'chk',t:'Attend.'},{id:'fees',ic:'card',t:'Fees'},{id:'diary',ic:'diary',t:'Diary'}],
+    teacher: [{id:'t-dash',ic:'grid',t:'Home'},{id:'att',ic:'chk',t:'Attend.'},{id:'results',ic:'chart',t:'Results'},{id:'diary',ic:'diary',t:'Diary'},{id:'ann',ic:'bell',t:'Notices'}],
+    student: [{id:'s-dash',ic:'grid',t:'Home'},{id:'s-att',ic:'chk',t:'Attend.'},{id:'s-fees',ic:'card',t:'Fees'},{id:'diary',ic:'diary',t:'Diary'},{id:'ann',ic:'bell',t:'Notices'}],
+    parent:  [{id:'p-dash',ic:'grid',t:'Home'},{id:'s-att',ic:'chk',t:'Attend.'},{id:'s-fees',ic:'card',t:'Fees'},{id:'diary',ic:'diary',t:'Diary'},{id:'ann',ic:'bell',t:'Notices'}],
+  };
+  const nav = document.getElementById('mobile-nav');
+  const items = document.getElementById('mobile-nav-items');
+  if (!nav || !items) return;
+  const list = mobileItems[CU.role] || [];
+  items.innerHTML = list.map(item => `
+    <div class="mobile-nav-item" id="mnav-${item.id}" onclick="goSec('${item.id}')">
+      ${IC[item.ic]||''}
+      <span>${item.t}</span>
+    </div>`).join('');
+  nav.classList.remove('hidden');
 }
 
 function buildNav(){
@@ -184,7 +250,9 @@ function markRead(){NOTIFS.forEach(n=>n.unread=false);document.getElementById('n
 
 function goSec(id){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav-item').forEach(n=>n.classList.remove('active'));
   const ni=document.getElementById('nav-'+id);if(ni)ni.classList.add('active');
+  const mni=document.getElementById('mnav-'+id);if(mni)mni.classList.add('active');
   document.getElementById('page-title').textContent=TITLES[id]||id;
   render(id);
 }
@@ -207,6 +275,7 @@ async function render(id){
     else if(id==='classes')   await secClasses(c);
     else if(id==='usermgmt')  await secUsers(c);
     else if(id==='sms')       await secSMS(c);
+    else if(id==='diary')      await secDiary(c);
     else if(id==='diary')     await secDiary(c);
     else if(id==='diary')     await secDiary(c);
     else if(id==='s-att')     await secMyAtt(c);
@@ -236,11 +305,41 @@ async function secDash(){
 
 // ── STUDENT DASHBOARD ──────────────────────────────────────────────────────
 async function secStudentDash(){
-  const ann=await GET('/announcements')||[];
-  const paps=await GET('/papers')||[];
-  return`<div style="padding:14px 16px;background:var(--blue-l);border-radius:var(--r);margin-bottom:14px;font-size:13px;color:var(--blue-t);">
-    Welcome back, <strong>${CU.name}</strong>! Check your attendance, fees and exam schedule below.
+  const stu = getLinkedStudent();
+  const ann = await GET('/announcements')||[];
+  const cls = stu ? stu.class : '';
+  const paps = await GET('/papers'+(cls?'?cls='+cls:''))||[];
+
+  // get quick stats if linked
+  let attHtml = '', feeHtml = '';
+  if (stu) {
+    const month = mon();
+    const attRows = await GET(`/attendance/student?student_id=${stu.id}&month=${month}`) || [];
+    const present = attRows.filter(r=>r.status==='Present').length;
+    const total   = attRows.length;
+    const pct     = total>0 ? Math.round(present/total*100) : 0;
+    const fees    = await GET(`/fees/student?student_id=${stu.id}`) || [];
+    const pending = fees.filter(f=>Number(f.amount_paid)<Number(f.amount_due));
+
+    attHtml = `<div class="stat-grid" style="grid-template-columns:1fr 1fr;margin-bottom:14px;">
+      <div class="stat-card"><div class="stat-lbl">Attendance ${month}</div>
+        <div class="stat-val" style="color:${p2c(pct)};">${pct}%</div>
+        <div class="stat-sub">${present}/${total} days</div>
+      </div>
+      <div class="stat-card"><div class="stat-lbl">Fee Status</div>
+        <div class="stat-val" style="color:${pending.length>0?'var(--red)':'var(--green)'};">
+          ${pending.length>0?'Pending':'Paid'}
+        </div>
+        <div class="stat-sub">${pending.length>0?pending.length+' month(s) due':'All clear'}</div>
+      </div>
+    </div>`;
+  }
+
+  return`<div style="padding:12px 14px;background:var(--blue-l);border-radius:var(--r);margin-bottom:14px;font-size:13px;color:var(--blue-t);">
+    Welcome back, <strong>${CU.name}</strong>!
+    ${stu ? `Class ${stu.class}-${stu.section} · Roll No: <strong>${stu.roll_no}</strong>` : ''}
   </div>
+  ${stu ? attHtml : noLinkMsg('Account not linked')}
   <div class="two-col">
     <div class="card"><div class="card-title">School Notices</div>${ann.slice(0,3).map(a=>`<div class="ai"><div class="ai-meta">${chip(a.category,'blue')} ${(a.created_at||'').slice(0,10)}</div><div class="ai-title">${a.title}</div></div>`).join('')||'<p style="color:#9ca3af;font-size:12px;">No notices.</p>'}</div>
     <div class="card"><div class="card-title">Upcoming Exams</div>${paps.slice(0,4).map(p=>`<div class="ai"><div class="ai-meta">${chip('Class '+p.class,'blue')} ${p.exam_date||'TBD'}</div><div class="ai-title">${p.subject}</div></div>`).join('')||'<p style="color:#9ca3af;font-size:12px;">No exams.</p>'}</div>
@@ -249,14 +348,70 @@ async function secStudentDash(){
 
 // ── PARENT DASHBOARD ───────────────────────────────────────────────────────
 async function secParentDash(){
-  const ann=await GET('/announcements')||[];
-  const paps=await GET('/papers')||[];
-  return`<div style="padding:14px 16px;background:var(--green-l);border-radius:var(--r);margin-bottom:14px;font-size:13px;color:var(--green);">
-    Welcome, <strong>${CU.name}</strong>! Track your child's attendance, fees and results here.
+  const stu = getLinkedStudent();
+  const ann = await GET('/announcements')||[];
+  const cls = stu ? stu.class : '';
+  const paps = await GET('/papers'+(cls?'?cls='+cls:''))||[];
+
+  let statsHtml = '';
+  if (stu) {
+    const month = mon();
+    const attRows = await GET(`/attendance/student?student_id=${stu.id}&month=${month}`) || [];
+    const present = attRows.filter(r=>r.status==='Present').length;
+    const absent  = attRows.filter(r=>r.status==='Absent').length;
+    const total   = attRows.length;
+    const pct     = total>0 ? Math.round(present/total*100) : 0;
+    const fees    = await GET(`/fees/student?student_id=${stu.id}`) || [];
+    const pending = fees.filter(f=>Number(f.amount_paid)<Number(f.amount_due));
+    const results = await GET(`/results/student?student_id=${stu.id}`) || [];
+    const totalM  = results.reduce((a,r)=>a+Number(r.papers?.total_marks||100),0);
+    const totalO  = results.reduce((a,r)=>a+Number(r.marks_obtained||0),0);
+    const overPct = totalM>0?Math.round(totalO/totalM*100):0;
+
+    statsHtml = `
+    <div style="padding:12px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div style="width:44px;height:44px;border-radius:50%;background:var(--blue-l);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--blue-t);flex-shrink:0;">
+        ${stu.name.charAt(0)}
+      </div>
+      <div>
+        <div style="font-size:14px;font-weight:600;">${stu.name}</div>
+        <div style="font-size:12px;color:var(--text2);">Class ${stu.class}-${stu.section} · Roll No: ${stu.roll_no} · Father: ${stu.father_name||'-'}</div>
+      </div>
+      <div style="margin-left:auto;">${chip('Active','green')}</div>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-lbl">Attendance ${month}</div>
+        <div class="stat-val" style="color:${p2c(pct)};">${pct}%</div>
+        <div class="stat-sub">${present} present · ${absent} absent</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-lbl">Fee Status</div>
+        <div class="stat-val" style="color:${pending.length>0?'var(--red)':'var(--green)'};">
+          ${pending.length>0?'Pending':'Paid'}
+        </div>
+        <div class="stat-sub">${pending.length>0?pending.length+' month(s) due':'All fees clear'}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-lbl">Overall Result</div>
+        <div class="stat-val" style="color:${gcol(overPct)};">${overPct>0?overPct+'%':'N/A'}</div>
+        <div class="stat-sub">${overPct>0?grade(overPct)+' Grade':'Not published'}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-lbl">Exams Scheduled</div>
+        <div class="stat-val">${paps.length}</div>
+        <div class="stat-sub">Class ${cls} papers</div>
+      </div>
+    </div>`;
+  }
+
+  return`<div style="padding:12px 14px;background:var(--green-l);border-radius:var(--r);margin-bottom:14px;font-size:13px;color:var(--green);">
+    Welcome, <strong>${CU.name}</strong>! Track your child's progress here.
   </div>
+  ${stu ? statsHtml : noLinkMsg('Child Account Not Linked')}
   <div class="two-col">
     <div class="card"><div class="card-title">School Notices</div>${ann.slice(0,3).map(a=>`<div class="ai"><div class="ai-meta">${chip(a.category,'blue')} ${(a.created_at||'').slice(0,10)}</div><div class="ai-title">${a.title}</div></div>`).join('')||'<p style="color:#9ca3af;font-size:12px;">No notices.</p>'}</div>
-    <div class="card"><div class="card-title">Upcoming Exams</div>${paps.slice(0,4).map(p=>`<div class="ai"><div class="ai-meta">${chip('Class '+p.class,'blue')} ${p.exam_date||'TBD'}</div><div class="ai-title">${p.subject}</div></div>`).join('')||'<p style="color:#9ca3af;font-size:12px;">No exams.</p>'}</div>
+    <div class="card"><div class="card-title">Upcoming Exams ${cls?'— Class '+cls:''}</div>${paps.slice(0,4).map(p=>`<div class="ai"><div class="ai-meta">${chip('Class '+p.class,'blue')} ${p.exam_date||'TBD'}</div><div class="ai-title">${p.subject}</div></div>`).join('')||'<p style="color:#9ca3af;font-size:12px;">No exams.</p>'}</div>
   </div>`;
 }
 
@@ -300,7 +455,7 @@ async function secStudents(c){
     const list=await GET('/students')||[];
     exportCSV(toCSV([['Roll','Name','Father','Class','Section','Contact','Parent Contact','Status'],...list.map(s=>[s.roll_no,s.name,s.father_name,s.class,s.section,s.contact,s.parent_contact,s.status])]),'students.csv');
   };
-  const sf=(s={},stuUsers=[],parUsers=[])=>`<div class="fg">
+  const sf=(s={})=>`<div class="fg">
     <div class="field"><label>Roll No *</label><input id="sf-r" value="${s.roll_no||''}"></div>
     <div class="field"><label>Name *</label><input id="sf-n" value="${s.name||''}"></div>
     <div class="field"><label>Father's Name</label><input id="sf-f" value="${s.father_name||''}"></div>
@@ -309,50 +464,13 @@ async function secStudents(c){
     <div class="field"><label>Date of Birth</label><input type="date" id="sf-d" value="${s.dob||''}"></div>
     <div class="field"><label>Class *</label><select id="sf-cl" onchange="updSec()">${clsOpts(s.class||'',false)}</select></div>
     <div class="field"><label>Section *</label><select id="sf-s">${s.class?secOpts(s.class,s.section||''):'<option>Select class first</option>'}</select></div>
-    <div class="field"><label>Link Student Account</label>
-  <select id="sf-stu-uid">
-    <option value="">None</option>
-  </select>
-</div>
-<div class="field"><label>Link Parent Account</label>
-  <select id="sf-par-uid">
-    <option value="">None</option>
-  </select>
-</div>
-    <div class="field"><label>Link Student Account</label>
-  <select id="sf-stu-uid">
-    <option value="">-- None --</option>
-    ${stuUsers.map(u=>`<option value="${u.id}" ${s.student_user_id===u.id?'selected':''}>${u.name} (${u.username})</option>`).join('')}
-  </select>
-</div>
-<div class="field"><label>Link Parent Account</label>
-  <select id="sf-par-uid">
-    <option value="">-- None --</option>
-    ${parUsers.map(u=>`<option value="${u.id}" ${s.parent_user_id===u.id?'selected':''}>${u.name} (${u.username})</option>`).join('')}
-  </select>
-</div><div class="field"><label>Status</label><select id="sf-st"><option value="Active" ${(s.status||'Active')==='Active'?'selected':''}>Active</option><option value="Inactive" ${s.status==='Inactive'?'selected':''}>Inactive</option></select></div>
+    <div class="field"><label>Status</label><select id="sf-st"><option value="Active" ${(s.status||'Active')==='Active'?'selected':''}>Active</option><option value="Inactive" ${s.status==='Inactive'?'selected':''}>Inactive</option></select></div>
   </div>`;
- window.addStu=async()=>{
-  const users=await GET('/users')||[];
-  const stuUsers=users.filter(u=>u.role==='student');
-  const parUsers=users.filter(u=>u.role==='parent');
-  const form=sf({},stuUsers,parUsers);
-  openModal('Add Student',form,
-    `<button class="btn" onclick="closeModal()">Cancel</button>
-     <button class="btn bp" onclick="saveStu()">Save</button>`);
-};
- window.editStu=async(id)=>{
-  const s=await GET('/students/'+id);
-  const users=await GET('/users')||[];
-  const stuUsers=users.filter(u=>u.role==='student');
-  const parUsers=users.filter(u=>u.role==='parent');
-  openModal('Edit Student',sf(s||{},stuUsers,parUsers),
-    `<button class="btn" onclick="closeModal()">Cancel</button>
-     <button class="btn bp" onclick="saveStu('${id}')">Update</button>`);
-};
+  window.addStu=()=>openModal('Add Student',sf(),`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn bp" onclick="saveStu()">Save</button>`);
+  window.editStu=async(id)=>{const s=await GET('/students/'+id);openModal('Edit Student',sf(s||{}),`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn bp" onclick="saveStu('${id}')">Update</button>`);};
   window.updSec=()=>{const el=document.getElementById('sf-s');if(el)el.innerHTML=secOpts(v('sf-cl'),'');};
   window.saveStu=async(id)=>{
-   const d={roll_no:v('sf-r'),name:v('sf-n'),father_name:v('sf-f'),class:v('sf-cl'),section:v('sf-s'),contact:v('sf-c'),parent_contact:v('sf-pc'),dob:v('sf-d'),status:v('sf-st')||'Active',student_user_id:v('sf-stu-uid')||null,parent_user_id:v('sf-par-uid')||null};
+    const d={roll_no:v('sf-r'),name:v('sf-n'),father_name:v('sf-f'),class:v('sf-cl'),section:v('sf-s'),contact:v('sf-c'),parent_contact:v('sf-pc'),dob:v('sf-d'),status:v('sf-st')||'Active'};
     if(!d.roll_no||!d.name||!d.class||!d.section){toast('Fill required fields','err');return;}
     const res=id?await PUT('/students/'+id,d):await POST('/students',d);
     if(res?.ok!==false){closeModal();toast(id?'Updated!':'Added!','ok');rStu();}else toast('Error: '+(res?.error||'Failed'),'err');
@@ -669,16 +787,182 @@ async function secResults(c){
 }
 
 // ── STUDENT/PARENT VIEWS ───────────────────────────────────────────────────
-async function secMyAtt(c){ c.innerHTML=`<div class="card"><div class="card-title">My Attendance</div><p style="color:#9ca3af;font-size:12px;">Contact admin to link your student account.</p></div>`; }
-async function secMyFees(c){ c.innerHTML=`<div class="card"><div class="card-title">My Fees</div><p style="color:#9ca3af;font-size:12px;">Contact admin to link your student account.</p></div>`; }
-async function secMyPapers(c){
-  const list=await GET('/papers')||[];
-  c.innerHTML=`<div class="card"><div class="card-title">Exam Schedule</div>
-  <div class="tbl-wrap"><table><thead><tr><th>Class</th><th>Subject</th><th>Date</th><th>Time</th><th>Hall</th></tr></thead>
-  <tbody>${list.map(p=>`<tr><td>${chip('Class '+p.class,'blue')}</td><td><strong>${p.subject}</strong></td><td>${p.exam_date||'-'}</td><td>${p.start_time||'-'}</td><td>${p.hall||'-'}</td></tr>`).join('')}</tbody>
-  </table></div></div>`;
+// ── get linked student helper ──────────────────────────────────────────────
+function getLinkedStudent() {
+  return CU.linked_student || null;
 }
-async function secMyResults(c){ c.innerHTML=`<div class="card"><div class="card-title">My Results</div><p style="color:#9ca3af;font-size:12px;">Contact admin to link your student account.</p></div>`; }
+
+function noLinkMsg(what) {
+  return `<div class="card">
+    <div class="card-title">${what}</div>
+    <div style="text-align:center;padding:30px;">
+      <div style="font-size:32px;margin-bottom:10px;">🔗</div>
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">Account not linked yet</div>
+      <div style="font-size:12px;color:var(--text2);">Please contact your school admin to link your account to your student record.</div>
+    </div>
+  </div>`;
+}
+
+// ── MY ATTENDANCE ──────────────────────────────────────────────────────────
+async function secMyAtt(c) {
+  const stu = getLinkedStudent();
+  if (!stu) { c.innerHTML = noLinkMsg('My Attendance'); return; }
+
+  const month = mon();
+  const rows = await GET(`/attendance/student?student_id=${stu.id}&month=${month}`) || [];
+  const present = rows.filter(r => r.status === 'Present').length;
+  const absent  = rows.filter(r => r.status === 'Absent').length;
+  const late    = rows.filter(r => r.status === 'Late').length;
+  const total   = rows.length;
+  const pct     = total > 0 ? Math.round(present / total * 100) : 0;
+
+  c.innerHTML = `
+    <div style="padding:12px 14px;background:var(--blue-l);border-radius:var(--r);margin-bottom:14px;font-size:13px;color:var(--blue-t);">
+      <strong>${stu.name}</strong> — Class ${stu.class}-${stu.section} · Roll No: ${stu.roll_no}
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-lbl">Present</div><div class="stat-val" style="color:var(--green);">${present}</div></div>
+      <div class="stat-card"><div class="stat-lbl">Absent</div><div class="stat-val" style="color:var(--red);">${absent}</div></div>
+      <div class="stat-card"><div class="stat-lbl">Late</div><div class="stat-val" style="color:var(--amber);">${late}</div></div>
+      <div class="stat-card"><div class="stat-lbl">Attendance %</div><div class="stat-val" style="color:${p2c(pct)};">${pct}%</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Attendance Record — ${month}</div>
+      <div style="margin-bottom:10px;">${pbar(pct, p2c(pct))}</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Date</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>${rows.map(r => `<tr>
+          <td>${new Date(r.date).toLocaleDateString('en-PK',{weekday:'short',month:'short',day:'numeric'})}</td>
+          <td>${chip(r.status, {Present:'green',Absent:'red',Late:'amber'}[r.status]||'gray')}</td>
+          <td style="font-size:11px;color:var(--text2);">${r.note||'-'}</td>
+        </tr>`).join('')}
+        ${rows.length===0?`<tr><td colspan="3" style="text-align:center;color:#9ca3af;padding:20px;">No attendance records this month.</td></tr>`:''}
+        </tbody>
+      </table></div>
+    </div>`;
+}
+
+// ── MY FEES ────────────────────────────────────────────────────────────────
+async function secMyFees(c) {
+  const stu = getLinkedStudent();
+  if (!stu) { c.innerHTML = noLinkMsg('My Fees'); return; }
+
+  const fees = await GET(`/fees/student?student_id=${stu.id}`) || [];
+  const totalPaid    = fees.reduce((a,f) => a + Number(f.amount_paid), 0);
+  const totalPending = fees.reduce((a,f) => a + Math.max(0, Number(f.amount_due) - Number(f.amount_paid)), 0);
+
+  c.innerHTML = `
+    <div style="padding:12px 14px;background:var(--blue-l);border-radius:var(--r);margin-bottom:14px;font-size:13px;color:var(--blue-t);">
+      <strong>${stu.name}</strong> — Class ${stu.class}-${stu.section} · Roll No: ${stu.roll_no}
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-lbl">Total Paid</div><div class="stat-val" style="color:var(--green);">Rs ${fmt(totalPaid)}</div></div>
+      <div class="stat-card"><div class="stat-lbl">Pending</div><div class="stat-val" style="color:var(--red);">Rs ${fmt(totalPending)}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Fee Statement</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Month</th><th>Fee Due</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr></thead>
+        <tbody>${fees.map(f => {
+          const bal = Number(f.amount_due) - Number(f.amount_paid);
+          return `<tr>
+            <td><strong>${f.month}</strong></td>
+            <td>Rs ${fmt(f.amount_due)}</td>
+            <td>Rs ${fmt(f.amount_paid)}</td>
+            <td>Rs ${fmt(bal)}</td>
+            <td>${feeChip(Number(f.amount_due), Number(f.amount_paid))}</td>
+            <td>${Number(f.amount_paid) >= Number(f.amount_due)
+              ? `<button class="btn bs" onclick="showFeeReceipt('${stu.name}',${f.amount_due},${f.amount_paid},'${f.month}')">Receipt</button>`
+              : `<span style="font-size:11px;color:var(--red);">Please pay Rs ${fmt(bal)}</span>`}
+            </td>
+          </tr>`;
+        }).join('')}
+        ${fees.length===0?`<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:20px;">No fee records found.</td></tr>`:''}
+        </tbody>
+      </table></div>
+    </div>`;
+
+  window.showFeeReceipt = (name, due, paid, month) => {
+    openModal('Fee Receipt', receiptHtml(name, due, paid, month),
+      `<button class="btn" onclick="closeModal()">Close</button>
+       <button class="btn bp" onclick="printModal()">Print</button>`);
+  };
+}
+
+// ── MY PAPERS ──────────────────────────────────────────────────────────────
+async function secMyPapers(c) {
+  const stu = getLinkedStudent();
+  const cls = stu ? stu.class : '';
+  const list = await GET('/papers' + (cls ? '?cls=' + cls : '')) || [];
+
+  c.innerHTML = `
+    ${stu ? `<div style="padding:12px 14px;background:var(--blue-l);border-radius:var(--r);margin-bottom:14px;font-size:13px;color:var(--blue-t);">
+      <strong>${stu.name}</strong> — Class ${stu.class}-${stu.section} · Roll No: ${stu.roll_no}
+    </div>` : ''}
+    <div class="card">
+      <div class="card-title">Exam Schedule ${cls ? '— Class ' + cls : ''}</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Subject</th><th>Date</th><th>Time</th><th>Duration</th><th>Hall</th><th>Marks</th></tr></thead>
+        <tbody>${list.map(p => `<tr>
+          <td><strong>${p.subject}</strong></td>
+          <td>${p.exam_date ? new Date(p.exam_date).toLocaleDateString('en-PK',{weekday:'short',month:'short',day:'numeric'}) : '-'}</td>
+          <td>${p.start_time||'-'}</td>
+          <td>${p.duration||'-'}</td>
+          <td>${p.hall ? chip(p.hall,'blue') : '-'}</td>
+          <td>${p.total_marks}</td>
+        </tr>`).join('')}
+        ${list.length===0?`<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:20px;">No exams scheduled yet.</td></tr>`:''}
+        </tbody>
+      </table></div>
+    </div>`;
+}
+
+// ── MY RESULTS ─────────────────────────────────────────────────────────────
+async function secMyResults(c) {
+  const stu = getLinkedStudent();
+  if (!stu) { c.innerHTML = noLinkMsg('My Results'); return; }
+
+  const results = await GET(`/results/student?student_id=${stu.id}`) || [];
+
+  // calculate totals
+  const totalMarks   = results.reduce((a,r) => a + Number(r.papers?.total_marks||100), 0);
+  const totalObtained= results.reduce((a,r) => a + Number(r.marks_obtained||0), 0);
+  const overallPct   = totalMarks > 0 ? Math.round(totalObtained / totalMarks * 100) : 0;
+
+  c.innerHTML = `
+    <div style="padding:12px 14px;background:var(--blue-l);border-radius:var(--r);margin-bottom:14px;font-size:13px;color:var(--blue-t);">
+      <strong>${stu.name}</strong> — Class ${stu.class}-${stu.section} · Roll No: ${stu.roll_no}
+    </div>
+    ${results.length > 0 ? `
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-lbl">Total Obtained</div><div class="stat-val">${totalObtained}/${totalMarks}</div></div>
+      <div class="stat-card"><div class="stat-lbl">Overall %</div><div class="stat-val" style="color:${gcol(overallPct)};">${overallPct}%</div></div>
+      <div class="stat-card"><div class="stat-lbl">Overall Grade</div><div class="stat-val" style="color:${gcol(overallPct)};">${grade(overallPct)}</div></div>
+      <div class="stat-card"><div class="stat-lbl">Subjects</div><div class="stat-val">${results.length}</div></div>
+    </div>` : ''}
+    <div class="card">
+      <div class="card-title">My Results</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Subject</th><th>Exam Date</th><th>Max Marks</th><th>Obtained</th><th>%</th><th>Grade</th><th>Result</th></tr></thead>
+        <tbody>${results.map(r => {
+          const ob  = Number(r.marks_obtained||0);
+          const max = Number(r.papers?.total_marks||100);
+          const p   = Math.round(ob/max*100);
+          return `<tr>
+            <td><strong>${r.papers?.subject||'-'}</strong></td>
+            <td style="font-size:11px;color:var(--text2);">${r.papers?.exam_date||'-'}</td>
+            <td>${max}</td>
+            <td><strong>${ob}</strong></td>
+            <td>${pbar(p, gcol(p))}</td>
+            <td style="color:${gcol(p)};font-weight:600;">${grade(p)}</td>
+            <td>${chip(ob>=max*0.33?'Pass':'Fail', ob>=max*0.33?'green':'red')}</td>
+          </tr>`;
+        }).join('')}
+        ${results.length===0?`<tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:20px;">No results published yet.</td></tr>`:''}
+        </tbody>
+      </table></div>
+    </div>`;
+}
 
 // ── CLASSES ────────────────────────────────────────────────────────────────
 async function secClasses(c){
@@ -780,6 +1064,170 @@ async function secUsers(c){
     };
     window.delUser=async(id,name)=>{if(!confirm(`Delete ${name}?`))return;await DEL('/users/'+id);toast('Deleted');render();};
   };
+  await render();
+}
+
+
+// ── DIARIES / HOMEWORK ─────────────────────────────────────────────────────
+async function secDiary(c){
+  const canEdit = CU.role === 'admin' || CU.role === 'teacher';
+  const render = async(cls='', section='', date='') => {
+    const params = new URLSearchParams();
+    if(cls) params.set('cls', cls);
+    if(section) params.set('section', section);
+    if(date) params.set('date', date);
+    const list = await GET('/diaries?' + params) || [];
+
+    const subjectColors = {
+      'English':'blue','Mathematics':'green','Physics':'purple',
+      'Chemistry':'amber','Biology':'green','Urdu':'red',
+      'Islamiat':'green','Pakistan Studies':'amber','Computer':'blue',
+      'Default':'gray'
+    };
+    const getColor = (sub) => subjectColors[sub] || subjectColors['Default'];
+
+    c.innerHTML = `
+    ${canEdit ? `<div class="card">
+      <div class="card-title">Add Homework / Diary Entry</div>
+      <div class="fg" style="margin-bottom:12px;">
+        <div class="field"><label>Class *</label><select id="dw-cls">${clsOpts('',false)}</select></div>
+        <div class="field"><label>Section *</label><select id="dw-sec"><option value="A">A</option><option value="B">B</option></select></div>
+        <div class="field"><label>Subject *</label>
+          <select id="dw-sub">
+            <option>English</option><option>Mathematics</option><option>Physics</option>
+            <option>Chemistry</option><option>Biology</option><option>Urdu</option>
+            <option>Islamiat</option><option>Pakistan Studies</option><option>Computer</option><option>Other</option>
+          </select>
+        </div>
+        <div class="field"><label>Date *</label><input type="date" id="dw-date" value="${new Date().toISOString().split('T')[0]}"></div>
+      </div>
+      <div class="field"><label>Homework / Task *</label><textarea id="dw-hw" rows="3" placeholder="e.g. Complete exercise 5 from chapter 3, pages 45-47..."></textarea></div>
+      <div class="fg">
+        <div class="field"><label>Due Date</label><input type="date" id="dw-due"></div>
+        <div class="field"><label>Note (optional)</label><input id="dw-note" placeholder="e.g. Will be checked tomorrow"></div>
+      </div>
+      <button class="btn bp" onclick="saveDiary()" style="width:100%;">+ Post Homework</button>
+    </div>` : ''}
+
+    <div class="card">
+      <div class="card-title">Homework Diary
+        <span style="font-size:11px;font-weight:400;color:#9ca3af;">${list.length} entries</span>
+      </div>
+      <div class="frow" style="margin-bottom:14px;">
+        <select id="df-cls" onchange="rDiary()">
+          <option value="">All Classes</option>
+          ${CLS.map(cl=>`<option value="${cl.name}" ${cl.name===cls?'selected':''}>Class ${cl.name}</option>`).join('')}
+        </select>
+        <select id="df-sec" onchange="rDiary()">
+          <option value="">All Sections</option>
+          ${cls ? secList(cls).map(s=>`<option value="${s}" ${s===section?'selected':''}>${s}</option>`).join('') : '<option value="A">A</option><option value="B">B</option>'}
+        </select>
+        <input type="date" id="df-date" value="${date}" onchange="rDiary()">
+        <button class="btn" onclick="document.getElementById('df-date').value='';rDiary()">Clear Date</button>
+      </div>
+
+      ${list.length === 0 ?
+        `<div style="text-align:center;padding:30px;color:#9ca3af;">
+          <div style="font-size:32px;margin-bottom:8px;">📚</div>
+          <div style="font-size:13px;">No homework entries found.</div>
+          ${canEdit ? '<div style="font-size:12px;margin-top:4px;">Add homework using the form above.</div>' : ''}
+        </div>` :
+        `<div style="display:flex;flex-direction:column;gap:10px;">
+          ${list.map(d => `
+          <div style="border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;background:var(--bg2);">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                ${chip(d.subject, getColor(d.subject))}
+                ${chip('Class '+d.class+'-'+d.section,'blue')}
+                <span style="font-size:11px;color:var(--text2);">${d.date}</span>
+                ${d.due_date ? `<span style="font-size:11px;color:var(--red);">Due: ${d.due_date}</span>` : ''}
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:11px;color:var(--text3);">By ${d.created_by_name||'Teacher'}</span>
+                ${canEdit ? `
+                  <button class="btn bs" onclick="editDiary('${d.id}')">Edit</button>
+                  <button class="btn bs bd" onclick="delDiary('${d.id}')">Delete</button>
+                ` : ''}
+              </div>
+            </div>
+            <div style="font-size:13px;color:var(--text);line-height:1.6;margin-bottom:${d.note?'6px':'0'};">${d.homework}</div>
+            ${d.note ? `<div style="font-size:12px;color:var(--text2);background:var(--bg3);padding:6px 10px;border-radius:var(--r);margin-top:6px;">📌 ${d.note}</div>` : ''}
+          </div>`).join('')}
+        </div>`
+      }
+    </div>`;
+  };
+
+  window.rDiary = async() => {
+    const cls = v('df-cls');
+    const secEl = document.getElementById('df-sec');
+    if(secEl && cls) secEl.innerHTML = '<option value="">All Sections</option>' + secList(cls).map(s=>`<option value="${s}">${s}</option>`).join('');
+    await render(cls, v('df-sec'), v('df-date'));
+  };
+
+  window.saveDiary = async() => {
+    const d = {
+      class: v('dw-cls'), section: v('dw-sec'), subject: v('dw-sub'),
+      date: v('dw-date'), homework: v('dw-hw'),
+      due_date: v('dw-due') || null, note: v('dw-note') || null,
+      created_by: CU.id
+    };
+    if(!d.class||!d.section||!d.subject||!d.date||!d.homework){
+      toast('Fill all required fields!','err'); return;
+    }
+    const res = await POST('/diaries', d);
+    if(res?.ok !== false){
+      document.getElementById('dw-hw').value = '';
+      document.getElementById('dw-note').value = '';
+      toast('Homework posted!','ok');
+      render(v('df-cls'), v('df-sec'), v('df-date'));
+    } else toast('Error: '+(res?.error||'Failed'),'err');
+  };
+
+  window.editDiary = async(id) => {
+    const list = await GET('/diaries') || [];
+    const d = list.find(x => x.id === id);
+    if(!d) return;
+    openModal('Edit Diary Entry',
+      `<div class="field"><label>Subject</label>
+        <select id="ed-sub">
+          <option ${d.subject==='English'?'selected':''}>English</option>
+          <option ${d.subject==='Mathematics'?'selected':''}>Mathematics</option>
+          <option ${d.subject==='Physics'?'selected':''}>Physics</option>
+          <option ${d.subject==='Chemistry'?'selected':''}>Chemistry</option>
+          <option ${d.subject==='Biology'?'selected':''}>Biology</option>
+          <option ${d.subject==='Urdu'?'selected':''}>Urdu</option>
+          <option ${d.subject==='Islamiat'?'selected':''}>Islamiat</option>
+          <option ${d.subject==='Pakistan Studies'?'selected':''}>Pakistan Studies</option>
+          <option ${d.subject==='Computer'?'selected':''}>Computer</option>
+          <option ${d.subject==='Other'?'selected':''}>Other</option>
+        </select>
+      </div>
+      <div class="field"><label>Date</label><input type="date" id="ed-date" value="${d.date}"></div>
+      <div class="field"><label>Homework *</label><textarea id="ed-hw" rows="4">${d.homework}</textarea></div>
+      <div class="field"><label>Due Date</label><input type="date" id="ed-due" value="${d.due_date||''}"></div>
+      <div class="field"><label>Note</label><input id="ed-note" value="${d.note||''}"></div>`,
+      `<button class="btn" onclick="closeModal()">Cancel</button>
+       <button class="btn bp" onclick="doEditDiary('${id}')">Update</button>`
+    );
+  };
+
+  window.doEditDiary = async(id) => {
+    const res = await PUT('/diaries/'+id, {
+      subject: v('ed-sub'), date: v('ed-date'),
+      homework: v('ed-hw'), due_date: v('ed-due')||null, note: v('ed-note')||null
+    });
+    if(res?.ok !== false){ closeModal(); toast('Updated!','ok'); render(); }
+    else toast('Error','err');
+  };
+
+  window.delDiary = async(id) => {
+    if(!confirm('Delete this homework entry?')) return;
+    await DEL('/diaries/'+id);
+    toast('Deleted');
+    render();
+  };
+
   await render();
 }
 
