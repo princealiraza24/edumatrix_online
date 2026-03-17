@@ -1,0 +1,93 @@
+# EduMatrix Online — Deployment Guide
+# Complete steps to go live in 30 minutes
+
+## STEP 1 — Run Database Schema in Supabase
+
+1. Go to https://supabase.com and login
+2. Open your project: mimpmsykusjgvwzeciau
+3. Click "SQL Editor" in left sidebar
+4. Click "New Query"
+5. Open the file: supabase_schema.sql
+6. Copy ALL the content and paste into SQL Editor
+7. Click "Run" (green button)
+8. You should see "Success" message
+9. Done! Your database tables are ready.
+
+## STEP 2 — Upload to GitHub
+
+1. Go to https://github.com and login
+2. Click "New Repository" (green button)
+3. Name it: edumatrix-online
+4. Keep it Public
+5. Click "Create Repository"
+6. On the next page, click "uploading an existing file"
+7. Upload ALL files from this folder (drag and drop)
+8. Click "Commit changes"
+9. Done!
+
+## STEP 3 — Deploy on Vercel
+
+1. Go to https://vercel.com and login with GitHub
+2. Click "Add New Project"
+3. Find your "edumatrix-online" repository and click "Import"
+4. In the configuration page:
+   - Framework Preset: Other
+   - Root Directory: ./
+5. Click "Environment Variables" and add:
+   - Name: SUPABASE_URL
+     Value: https://mimpmsykusjgvwzeciau.supabase.co
+   - Name: SUPABASE_ANON_KEY
+     Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9....(full key)
+6. Click "Deploy"
+7. Wait 2 minutes
+8. Vercel gives you a URL like: https://edumatrix-online.vercel.app
+
+## STEP 4 — Test Your Live App
+
+Open your URL in browser and login:
+- admin / admin123
+- teacher / teach123
+
+## LOGIN CREDENTIALS
+
+| Role      | Username | Password  |
+|-----------|----------|-----------|
+| Admin     | admin    | admin123  |
+| Teacher   | teacher  | teach123  |
+
+## WHAT WORKS ONLINE
+
+- All 4 roles: Admin, Teacher, Student, Parent
+- Dashboard with live stats
+- Students management
+- Attendance with automatic SMS to parents when absent
+- Fees collection and receipts
+- Announcements
+- Paper schedule
+- Results and report cards
+- Classes management
+- User accounts
+- SMS logs
+
+## SMS SETUP (Optional - do later)
+
+To enable real SMS:
+1. Create account at twilio.com
+2. Get your Account SID, Auth Token, Phone Number
+3. In Vercel → Project Settings → Environment Variables, add:
+   - TWILIO_SID = your_account_sid
+   - TWILIO_TOKEN = your_auth_token
+   - TWILIO_FROM = your_twilio_number
+4. Redeploy
+
+## CUSTOM DOMAIN (Optional)
+
+To use your own domain like edumatrix.pk:
+1. Buy domain from PakNIC or Namecheap (~Rs 2000/year)
+2. In Vercel → Domains → Add your domain
+3. Follow DNS setup instructions
+
+## SUPPORT
+
+All source code is in this folder.
+Share with any developer for customization.
