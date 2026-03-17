@@ -4,10 +4,6 @@
     {
       "src": "api/server.js",
       "use": "@vercel/node"
-    },
-    {
-      "src": "public/**",
-      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -16,12 +12,16 @@
       "dest": "api/server.js"
     },
     {
+      "src": "/src/(.*)",
+      "dest": "/public/src/$1"
+    },
+    {
+      "src": "/(.*\\.(css|js|png|jpg|ico|svg))",
+      "dest": "/public/$1"
+    },
+    {
       "src": "/(.*)",
-      "dest": "public/$1"
+      "dest": "/public/index.html"
     }
-  ],
-  "env": {
-    "SUPABASE_URL": "https://mimpmsykusjgvwzeciau.supabase.co",
-    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1pbXBtc3lrdXNqZ3Z3emVjaWF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MjIyMTcsImV4cCI6MjA4OTI5ODIxN30._AK9YtdOMGZuOJkufOHNpWG2JG_0dh8b_chPk4dbMKc"
-  }
+  ]
 }
