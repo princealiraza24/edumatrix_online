@@ -49,11 +49,6 @@ const API = window.location.hostname === 'localhost'
   ? 'http://localhost:3001/api'
   : '/api';
 
-// ── STATE ──────────────────────────────────────────────────────────────────
-let CU = null;
-let CLS = [];
-let NOTIFS = [];
-
 // ── API CALLS ──────────────────────────────────────────────────────────────
 async function api(method, path, body) {
   try {
