@@ -7,7 +7,7 @@ const ASSETS = [
   '/manifest.json'
 ];
 
-// Install — cache all files
+// Install
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(cache => cache.addAll(ASSETS))
@@ -15,7 +15,7 @@ self.addEventListener('install', e => {
   self.skipWaiting();
 });
 
-// Activate — clean old caches
+// Activate
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
@@ -25,15 +25,44 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// Fetch — serve from cache, fallback to network
+// Fetch
 self.addEventListener('fetch', e => {
-  // Always fetch API calls from network
-  if (e.request.url.includes('/api/')) {
-    return;
-  }
+  if (e.request.url.includes('/api/')) return;
   e.respondWith(
     caches.match(e.request).then(cached => {
       return cached || fetch(e.request).catch(() => caches.match('/index.html'));
+    })
+  );
+});
+
+// ── PUSH NOTIFICATION ──────────────────────────────────────────────────────
+self.addEventListener('push', e => {
+  const data = e.data ? e.data.json() : {};
+  const title = data.title || 'EduMatrix School';
+  const options = {
+    body: data.body || 'You have a new notification',
+    icon: '/public/icons/icon-192.png',
+    badge: '/public/icons/icon-192.png',
+    vibrate: [200, 100, 200],
+    data: { url: data.url || '/' },
+    actions: [
+      { action: 'open', title: 'Open App' },
+      { action: 'close', title: 'Dismiss' }
+    ]
+  };
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Click on notification
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  if (e.action === 'close') return;
+  e.waitUntil(
+    clients.matchAll({ type: 'window' }).then(clientList => {
+      for (const client of clientList) {
+        if (client.url === '/' && 'focus' in client) return client.focus();
+      }
+      if (clients.openWindow) return clients.openWindow('/');
     })
   );
 });
