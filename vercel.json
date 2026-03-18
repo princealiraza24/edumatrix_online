@@ -12,24 +12,8 @@
       "dest": "api/server.js"
     },
     {
-      "src": "/manifest.json",
-      "dest": "public/manifest.json"
-    },
-    {
-      "src": "/sw.js",
-      "dest": "public/sw.js"
-    },
-    {
-      "src": "/src/(.*)",
-      "dest": "src/$1"
-    },
-    {
-      "src": "/(.*\\.(png|ico|svg))",
-      "dest": "public/$1"
-    },
-    {
       "src": "/(.*)",
-      "dest": "index.html"
+      "dest": "/$1"
     }
   ]
 }
