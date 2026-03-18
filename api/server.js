@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
+const webpush = require('web-push');
 
 const app = express();
 app.use(cors());
@@ -12,6 +13,12 @@ const supabase = createClient(
 );
 
 const SCHOOL_ID = '00000000-0000-0000-0000-000000000001';
+
+webpush.setVapidDetails(
+  'mailto:admin@edumatrix.pk',
+  process.env.VAPID_PUBLIC_KEY || 'BKNbHEw95d4wgaP4m0njpXbPcGRrFC7Wy5aEV4s_XrwGA0gQOr0rJUcoHNLA_NwD0y-i9vUNspPWoPv6etOcj6c',
+  process.env.VAPID_PRIVATE_KEY || 'rENa_MqBxGDBBI3C2affiw1fDgBZFX-bCT_OxYICB8U'
+);
 
 // ── AUTH ───────────────────────────────────────────────────────────────────
 app.post('/api/login', async (req, res) => {
@@ -122,14 +129,24 @@ app.post('/api/attendance', async (req, res) => {
   const { error } = await supabase
     .from('attendance').upsert(upserts, { onConflict: 'school_id,student_id,date' });
 
+  // Send SMS + Push for absent students
   const absent = records.filter(r => r.status === 'Absent');
   for (const a of absent) {
     const { data: stu } = await supabase
-      .from('students').select('name, parent_contact')
+      .from('students').select('name, parent_contact, parent_user_id')
       .eq('id', a.student_id).single();
-    if (stu?.parent_contact) {
-      await sendSMS(stu.parent_contact,
-        `Dear Parent, your child ${stu.name} was ABSENT on ${date}. - EduMatrix School`);
+    if (stu) {
+      if (stu.parent_contact) {
+        await sendSMS(stu.parent_contact,
+          `Dear Parent, your child ${stu.name} was ABSENT on ${date}. - EduMatrix School`);
+      }
+      if (stu.parent_user_id) {
+        await sendPushToUser(
+          stu.parent_user_id,
+          '🔴 Absence Alert',
+          `${stu.name} was marked ABSENT on ${date}.`
+        );
+      }
     }
   }
   res.json(error ? { ok: false } : { ok: true });
@@ -218,6 +235,11 @@ app.get('/api/announcements', async (req, res) => {
 app.post('/api/announcements', async (req, res) => {
   const { data, error } = await supabase.from('announcements')
     .insert({ ...req.body, school_id: SCHOOL_ID }).select().single();
+  if (!error && data) {
+    await sendPushToRole('student', '📢 ' + data.title, data.body || '');
+    await sendPushToRole('parent',  '📢 ' + data.title, data.body || '');
+    await sendPushToRole('teacher', '📢 ' + data.title, data.body || '');
+  }
   res.json(error ? { ok: false } : { ok: true, data });
 });
 
@@ -400,6 +422,62 @@ app.delete('/api/diary/:id', async (req, res) => {
     .eq('id', req.params.id).eq('school_id', SCHOOL_ID);
   res.json({ ok: true });
 });
+
+// ── PUSH NOTIFICATIONS ─────────────────────────────────────────────────────
+app.post('/api/push/subscribe', async (req, res) => {
+  const { subscription, user_id } = req.body;
+  await supabase.from('push_subscriptions').upsert({
+    school_id: SCHOOL_ID,
+    user_id,
+    subscription: JSON.stringify(subscription),
+    created_at: new Date().toISOString()
+  }, { onConflict: 'user_id' });
+  res.json({ ok: true });
+});
+
+app.delete('/api/push/unsubscribe', async (req, res) => {
+  const { user_id } = req.body;
+  await supabase.from('push_subscriptions').delete().eq('user_id', user_id);
+  res.json({ ok: true });
+});
+
+app.post('/api/push/test', async (req, res) => {
+  const { user_id, title, body } = req.body;
+  await sendPushToUser(user_id, title || 'Test Notification', body || 'EduMatrix push is working!');
+  res.json({ ok: true });
+});
+
+async function sendPushToUser(user_id, title, body, url='/') {
+  try {
+    const { data } = await supabase.from('push_subscriptions')
+      .select('subscription').eq('user_id', user_id).single();
+    if (!data) return;
+    const sub = JSON.parse(data.subscription);
+    await webpush.sendNotification(sub, JSON.stringify({ title, body, url }));
+    console.log('Push sent to user:', user_id);
+  } catch(e) { console.error('Push error:', e.message); }
+}
+
+async function sendPushToRole(role, title, body) {
+  try {
+    const { data: subs } = await supabase.from('push_subscriptions')
+      .select('subscription, user_id').eq('school_id', SCHOOL_ID);
+    if (!subs || !subs.length) return;
+    const { data: users } = await supabase.from('users')
+      .select('id').eq('school_id', SCHOOL_ID).eq('role', role);
+    const userIds = new Set((users||[]).map(u => u.id));
+    for (const s of subs) {
+      if (userIds.has(s.user_id)) {
+        try {
+          await webpush.sendNotification(
+            JSON.parse(s.subscription),
+            JSON.stringify({ title, body })
+          );
+        } catch(e) { console.error('Push failed:', e.message); }
+      }
+    }
+  } catch(e) { console.error('Push broadcast error:', e.message); }
+}
 
 // ── SMS ────────────────────────────────────────────────────────────────────
 async function sendSMS(to, message) {
