@@ -1276,6 +1276,11 @@ async function secDiary(c){
 
 // ── SMS LOGS ───────────────────────────────────────────────────────────────
 async function secSMS(c){
+  // Only admin can see SMS logs
+  if(CU.role !== 'admin') {
+    await secNotifications(c);
+    return;
+  }
   const logs=await GET('/sms/logs')||[];
 
   // Check current push status
@@ -2061,16 +2066,14 @@ async function secNotifications(c) {
 
   window.togglePushNotif = async () => {
     if (Notification.permission === 'granted') {
-      // Send test notification
       const res = await POST('/push/test', {
         user_id: CU.id,
-        title: '✅ Test Notification',
-        body: 'EduMatrix notifications are working perfectly!'
+        title: '🔔 EduMatrix Alert',
+        body: 'Notifications are working! You will be notified when your child is absent.'
       });
-      if (res?.ok !== false) toast('Test notification sent!', 'ok');
-      else toast('Error — try enabling notifications first', 'err');
+      if (res?.ok !== false) toast('Test notification sent to your phone!', 'ok');
+      else toast('Error — please try again', 'err');
     } else {
-      // Enable notifications
       await subscribeToPush();
       toast('Notifications enabled!', 'ok');
       secNotifications(c);
