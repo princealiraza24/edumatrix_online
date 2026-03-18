@@ -21,7 +21,7 @@
     },
     {
       "src": "/src/(.*)",
-      "dest": "public/src/$1"
+      "dest": "src/$1"
     },
     {
       "src": "/(.*\\.(png|ico|svg))",
@@ -29,7 +29,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "public/index.html"
+      "dest": "index.html"
     }
   ]
 }
