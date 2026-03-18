@@ -10,9 +10,7 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(ASSETS))
-  );
+  e.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
   self.skipWaiting();
 });
 
@@ -28,9 +26,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.url.includes('/api/')) return;
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      return cached || fetch(e.request).catch(() => caches.match('/index.html'));
-    })
+    caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => caches.match('/index.html')))
   );
 });
 
@@ -56,9 +52,7 @@ self.addEventListener('notificationclick', e => {
   if (e.action === 'close') return;
   e.waitUntil(
     clients.matchAll({ type: 'window' }).then(clientList => {
-      for (const client of clientList) {
-        if ('focus' in client) return client.focus();
-      }
+      for (const client of clientList) if ('focus' in client) return client.focus();
       if (clients.openWindow) return clients.openWindow(e.notification.data.url);
     })
   );
