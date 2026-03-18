@@ -101,10 +101,10 @@ const NAVS = {
     {lbl:'Portal',items:[{id:'t-dash',ic:'grid',t:'Dashboard'},{id:'att',ic:'chk',t:'Attendance'},{id:'diary',ic:'diary',t:'Diary'},{id:'results',ic:'chart',t:'Results'},{id:'papers',ic:'doc',t:'Papers'},{id:'ann',ic:'bell',t:'Notices'}]},
   ],
   student:[
-    {lbl:'My Portal',items:[{id:'s-dash',ic:'grid',t:'Dashboard'},{id:'s-att',ic:'chk',t:'My Attendance'},{id:'s-fees',ic:'card',t:'My Fees'},{id:'diary',ic:'diary',t:'Diary'},{id:'s-papers',ic:'doc',t:'Exam Schedule'},{id:'s-results',ic:'chart',t:'My Results'},{id:'ann',ic:'bell',t:'Notices'}]},
+    {lbl:'My Portal',items:[{id:'s-dash',ic:'grid',t:'Dashboard'},{id:'s-att',ic:'chk',t:'My Attendance'},{id:'s-fees',ic:'card',t:'My Fees'},{id:'diary',ic:'diary',t:'Diary'},{id:'s-papers',ic:'doc',t:'Exam Schedule'},{id:'s-results',ic:'chart',t:'My Results'},{id:'ann',ic:'bell',t:'Notices'},{id:'p-notif',ic:'bell',t:'Notifications'}]},
   ],
   parent:[
-    {lbl:"Child's Info",items:[{id:'p-dash',ic:'grid',t:'Overview'},{id:'s-att',ic:'chk',t:'Attendance'},{id:'s-fees',ic:'card',t:'Fees'},{id:'diary',ic:'diary',t:'Diary'},{id:'s-results',ic:'chart',t:'Results'},{id:'ann',ic:'bell',t:'Notices'}]},
+    {lbl:"Child's Info",items:[{id:'p-dash',ic:'grid',t:'Overview'},{id:'s-att',ic:'chk',t:'Attendance'},{id:'s-fees',ic:'card',t:'Fees'},{id:'diary',ic:'diary',t:'Diary'},{id:'s-results',ic:'chart',t:'Results'},{id:'ann',ic:'bell',t:'Notices'},{id:'p-notif',ic:'bell',t:'Notifications'}]},
   ],
 };
 
@@ -112,7 +112,7 @@ const TITLES={
   diary:'Diary & Homework',diary:'Class Diary',diary:'Daily Diary',
   dash:'Dashboard',students:'Students',att:'Attendance',fees:'Fees',ann:'Announcements',papers:'Paper Info',results:'Results',classes:'Classes',usermgmt:'Users',sms:'SMS Logs',
   diary:'Class Diary',
-  't-dash':'Dashboard','s-dash':'My Dashboard','p-dash':'Child Overview',
+  't-dash':'Dashboard','s-dash':'My Dashboard','p-dash':'Child Overview','p-notif':'Notifications',
   's-att':'My Attendance','s-fees':'My Fees','s-papers':'Exam Schedule','s-results':'My Results',
 };
 
@@ -287,6 +287,7 @@ async function render(id){
     else if(id==='s-fees')    await secMyFees(c);
     else if(id==='s-papers')  await secMyPapers(c);
     else if(id==='s-results') await secMyResults(c);
+    else if(id==='p-notif')   await secNotifications(c);
     else c.innerHTML='<div class="card"><p style="color:#9ca3af;">Coming soon.</p></div>';
   }catch(e){ c.innerHTML=`<div class="card"><p style="color:var(--red);">Error: ${e.message}</p></div>`; console.error(e); }
 }
@@ -1986,4 +1987,98 @@ async function secDiary(c) {
   let entries = [];
   const origRender = render;
   await render();
+}
+
+// ── NOTIFICATIONS PAGE (Parent + Student) ──────────────────────────────────
+async function secNotifications(c) {
+  let pushStatus = 'Not supported';
+  let pushBtnText = 'Enable Notifications';
+  let pushEnabled = false;
+
+  if ('Notification' in window) {
+    if (Notification.permission === 'granted') {
+      pushStatus = 'Enabled';
+      pushBtnText = 'Send Test Notification';
+      pushEnabled = true;
+    } else if (Notification.permission === 'denied') {
+      pushStatus = 'Blocked';
+    } else {
+      pushStatus = 'Not enabled yet';
+    }
+  }
+
+  c.innerHTML = `
+  <div class="card">
+    <div class="card-title">Push Notifications</div>
+
+    <div style="padding:16px;background:${pushEnabled?'var(--green-l)':'var(--blue-l)'};border-radius:var(--r);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:${pushEnabled?'var(--green)':'var(--blue-t)'};">
+          ${pushEnabled ? '✅ Notifications are ON' : '🔔 Enable Notifications'}
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px;">
+          Status: <strong>${pushStatus}</strong>
+        </div>
+      </div>
+      ${Notification.permission !== 'denied' ? `
+        <button class="btn bp" onclick="togglePushNotif()" id="push-btn">
+          ${pushEnabled ? 'Send Test' : 'Enable Now'}
+        </button>` :
+        `<div style="font-size:12px;color:var(--red);">
+          Notifications blocked. Click 🔒 in browser address bar to allow.
+        </div>`
+      }
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;">What notifications will you receive?</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--r);">
+          <span style="font-size:20px;">🔴</span>
+          <div>
+            <div style="font-size:13px;font-weight:500;">Absence Alert</div>
+            <div style="font-size:12px;color:var(--text2);">Instant notification when your child is marked absent</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--r);">
+          <span style="font-size:20px;">📢</span>
+          <div>
+            <div style="font-size:13px;font-weight:500;">Announcements</div>
+            <div style="font-size:12px;color:var(--text2);">School notices, exam schedules and important updates</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--r);">
+          <span style="font-size:20px;">📚</span>
+          <div>
+            <div style="font-size:13px;font-weight:500;">Homework Diary</div>
+            <div style="font-size:12px;color:var(--text2);">New homework posted by teachers</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding:12px;background:var(--bg3);border-radius:var(--r);font-size:12px;color:var(--text2);">
+      <strong>How to install EduMatrix on your phone:</strong><br>
+      Android: Open in Chrome → tap 3 dots menu → "Add to Home Screen"<br>
+      iPhone: Open in Safari → tap Share → "Add to Home Screen"
+    </div>
+  </div>`;
+
+  window.togglePushNotif = async () => {
+    if (Notification.permission === 'granted') {
+      // Send test notification
+      const res = await POST('/push/test', {
+        user_id: CU.id,
+        title: '✅ Test Notification',
+        body: 'EduMatrix notifications are working perfectly!'
+      });
+      if (res?.ok !== false) toast('Test notification sent!', 'ok');
+      else toast('Error — try enabling notifications first', 'err');
+    } else {
+      // Enable notifications
+      await subscribeToPush();
+      toast('Notifications enabled!', 'ok');
+      secNotifications(c);
+    }
+  };
 }
