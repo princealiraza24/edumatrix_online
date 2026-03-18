@@ -1,48 +1,50 @@
 'use strict';
 
-// ── PWA Install ────────────────────────────────────────────────────────────
-let deferredPrompt = null;
+// ── STATE ──────────────────────────────────────────────────────────────────
+let CU = null;
+let CLS = [];
+let NOTIFS = [];
 
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault();
-  deferredPrompt = e;
-  // Show install banner after 3 seconds
-  setTimeout(() => {
-    const banner = document.getElementById('install-banner');
-    if (banner && !localStorage.getItem('installDismissed')) {
-      banner.classList.add('show');
-    }
-  }, 3000);
-});
+// ── VAPID PUBLIC KEY ───────────────────────────────────────────────────────
+const VAPID_PUBLIC_KEY = 'BKNbHEw95d4wgaP4m0njpXbPcGRrFC7Wy5aEV4s_XrwGA0gQOr0rJUcoHNLA_NwD0y-i9vUNspPWoPv6etOcj6c';
 
-window.installApp = async () => {
-  if (deferredPrompt) {
-    deferredPrompt.prompt();
-    const result = await deferredPrompt.userChoice;
-    deferredPrompt = null;
-    document.getElementById('install-banner').classList.remove('show');
-    if (result.outcome === 'accepted') {
-      toast('EduMatrix installed on your phone!', 'ok');
-    }
-  } else {
-    // iOS instructions
-    toast('On iPhone: tap Share → Add to Home Screen', 'ok');
-  }
-};
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
 
-window.dismissInstall = () => {
-  document.getElementById('install-banner').classList.remove('show');
-  localStorage.setItem('installDismissed', '1');
-};
+async function subscribeToPush() {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    const reg = await navigator.serviceWorker.ready;
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+    await POST('/push/subscribe', { subscription: sub, user_id: CU.id });
+    console.log('Push subscription saved');
+  } catch(e) { console.error('Push subscribe error:', e); }
+}
 
-window.addEventListener('appinstalled', () => {
-  toast('EduMatrix installed successfully!', 'ok');
-  deferredPrompt = null;
-});
+async function unsubscribeFromPush() {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) await sub.unsubscribe();
+    await fetch(API + '/push/unsubscribe', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: CU.id })
+    });
+  } catch(e) { console.error('Unsubscribe error:', e); }
+}
 
-
-// ── CONFIG ─────────────────────────────────────────────────────────────────
-// Change this to your Render API URL after deployment
 const API = window.location.hostname === 'localhost'
   ? 'http://localhost:3001/api'
   : '/api';
