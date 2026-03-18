@@ -5,17 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EduMatrix — School Management</title>
 
-<!-- Styles -->
 <link rel="stylesheet" href="/src/style.css">
-
-<!-- PWA Manifest & Theme -->
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0f2d6e">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="EduMatrix">
-
 </head>
 <body>
 
@@ -80,7 +76,6 @@
   </main>
 </div>
 
-<!-- MODAL -->
 <div class="modal-bg hidden" id="modal-bg">
   <div class="modal-box">
     <div class="modal-head">
@@ -94,10 +89,8 @@
 
 <div class="toast hidden" id="toast"></div>
 
-<!-- Scripts -->
 <script src="/src/app.js"></script>
 
-<!-- Service Worker Registration -->
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
