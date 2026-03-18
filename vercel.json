@@ -1,12 +1,10 @@
 {
   "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/api/server.js"
-    },
-    {
-      "source": "/:path*",
-      "destination": "/index.html"
-    }
+    { "source": "/api/:path*",    "destination": "/api/server.js" },
+    { "source": "/manifest.json", "destination": "/public/manifest.json" },
+    { "source": "/sw.js",         "destination": "/public/sw.js" },
+    { "source": "/icons/:path*",  "destination": "/public/icons/:path*" },
+    { "source": "/src/:path*",    "destination": "/public/src/:path*" },
+    { "source": "/:path*",        "destination": "/public/index.html" }
   ]
 }
