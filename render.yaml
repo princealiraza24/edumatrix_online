@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: edumatrix-api
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: SUPABASE_URL
+        value: https://mimpmsykusjgvwzeciau.supabase.co
+      - key: SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1pbXBtc3lrdXNqZ3Z3emVjaWF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MjIyMTcsImV4cCI6MjA4OTI5ODIxN30._AK9YtdOMGZuOJkufOHNpWG2JG_0dh8b_chPk4dbMKc
