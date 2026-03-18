@@ -181,6 +181,7 @@ async function doLogin(){
 document.getElementById('l-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 
 function doLogout(){
+  unsubscribeFromPush();
   CU=null;CLS=[];
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('app').classList.add('hidden');
@@ -200,6 +201,8 @@ async function boot(){
   buildMobileNav();
   loadNotifs();
   goSec(NAVS[CU.role][0].items[0].id);
+  // Ask for push notification permission after login
+  setTimeout(() => subscribeToPush(), 2000);
 }
 
 
@@ -1276,22 +1279,81 @@ async function secDiary(c){
 // ── SMS LOGS ───────────────────────────────────────────────────────────────
 async function secSMS(c){
   const logs=await GET('/sms/logs')||[];
-  c.innerHTML=`<div class="card">
-    <div class="card-title">SMS Logs <span style="font-size:11px;font-weight:400;color:#9ca3af;">${logs.length} messages sent</span>
+
+  // Check current push status
+  let pushStatus = 'Not supported';
+  let pushBtnText = 'Enable Notifications';
+  let pushBtnAction = 'enablePush()';
+  if ('Notification' in window) {
+    if (Notification.permission === 'granted') {
+      pushStatus = '✅ Enabled';
+      pushBtnText = 'Send Test Notification';
+      pushBtnAction = 'testPushNotif()';
+    } else if (Notification.permission === 'denied') {
+      pushStatus = '❌ Blocked — allow in browser settings';
+      pushBtnText = 'Blocked';
+      pushBtnAction = '';
+    } else {
+      pushStatus = '⚠️ Not enabled yet';
+    }
+  }
+
+  c.innerHTML=`
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-title">Push Notifications</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:12px;background:var(--bg3);border-radius:var(--r);">
+      <div>
+        <div style="font-size:13px;font-weight:500;">Status: ${pushStatus}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:3px;">
+          When enabled — parents get notified instantly when child is absent.
+          Announcements also send notifications to everyone.
+        </div>
+      </div>
+      ${pushBtnAction ? `<button class="btn bp" onclick="${pushBtnAction}">${pushBtnText}</button>` : ''}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">SMS Logs <span style="font-size:11px;font-weight:400;color:#9ca3af;">${logs.length} sent</span>
       <button class="btn bp" onclick="testSMS()">Send Test SMS</button>
     </div>
-    ${logs.length===0?'<p style="color:#9ca3af;font-size:12px;">No SMS sent yet. SMS are sent automatically when attendance is marked absent.</p>':
-    `<div class="tbl-wrap"><table><thead><tr><th>Recipient</th><th>Message</th><th>Status</th><th>Time</th></tr></thead>
-    <tbody>${logs.map(l=>`<tr><td>${l.recipient}</td><td style="max-width:300px;font-size:11px;">${l.message}</td><td>${chip(l.status,'green')}</td><td style="font-size:11px;color:#9ca3af;">${(l.created_at||'').slice(0,16)}</td></tr>`).join('')}</tbody>
-    </table></div>`}
+    ${logs.length===0
+      ? '<p style="color:#9ca3af;font-size:12px;">No SMS sent yet. SMS sent automatically when student marked absent.</p>'
+      : `<div class="tbl-wrap"><table><thead><tr><th>Recipient</th><th>Message</th><th>Status</th><th>Time</th></tr></thead>
+        <tbody>${logs.map(l=>`<tr>
+          <td>${l.recipient}</td>
+          <td style="max-width:280px;font-size:11px;">${l.message}</td>
+          <td>${chip(l.status,'green')}</td>
+          <td style="font-size:11px;color:#9ca3af;">${(l.created_at||'').slice(0,16)}</td>
+        </tr>`).join('')}</tbody>
+        </table></div>`
+    }
   </div>`;
-  window.testSMS=()=>openModal('Send Test SMS',
+
+  window.enablePush = async () => {
+    await subscribeToPush();
+    toast('Notifications enabled!', 'ok');
+    secSMS(c);
+  };
+
+  window.testPushNotif = async () => {
+    const res = await POST('/push/test', {
+      user_id: CU.id,
+      title: '✅ Test Notification',
+      body: 'EduMatrix push notifications are working!'
+    });
+    if (res?.ok !== false) toast('Test notification sent! Check your phone.', 'ok');
+    else toast('Error sending notification', 'err');
+  };
+
+  window.testSMS = () => openModal('Send Test SMS',
     `<div class="field"><label>Phone Number</label><input id="sms-to" placeholder="e.g. 0300-1234567"></div>
      <div class="field"><label>Message</label><textarea id="sms-msg" rows="3">Test message from EduMatrix School System.</textarea></div>`,
-    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn bp" onclick="doTestSMS()">Send</button>`);
-  window.doTestSMS=async()=>{
-    await POST('/sms/test',{to:v('sms-to'),message:v('sms-msg')});
-    closeModal();toast('Test SMS sent!','ok');secSMS(c);
+    `<button class="btn" onclick="closeModal()">Cancel</button>
+     <button class="btn bp" onclick="doTestSMS()">Send</button>`);
+
+  window.doTestSMS = async () => {
+    await POST('/sms/test', {to: v('sms-to'), message: v('sms-msg')});
+    closeModal(); toast('Test SMS sent!', 'ok'); secSMS(c);
   };
 }
 
