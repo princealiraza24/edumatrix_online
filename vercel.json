@@ -1,9 +1,36 @@
 {
   "version": 2,
-  "rewrites": [
+  "builds": [
     {
-      "source": "/api/:path*",
-      "destination": "/api/server.js"
+      "src": "api/server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "api/server.js"
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "public/manifest.json"
+    },
+    {
+      "src": "/sw.js",
+      "dest": "public/sw.js"
+    },
+    {
+      "src": "/src/(.*)",
+      "dest": "public/src/$1"
+    },
+    {
+      "src": "/(.*\\.(png|ico|svg))",
+      "dest": "public/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "public/index.html"
     }
   ]
 }
+https://edumatrix-online.vercel.app/sw.js
