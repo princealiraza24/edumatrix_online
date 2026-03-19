@@ -80,17 +80,14 @@ const IC = {
   book: `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 1h9a1 1 0 011 1v9a1 1 0 01-1 1H2a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M4 4h5M4 6.5h5M4 9h3"/></svg>`,
   diary:`<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 1h9a1 1 0 011 1v9a1 1 0 01-1 1H2a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M4 4h5M4 6.5h5M4 9h3"/><path d="M1 4h2M1 6.5h2M1 9h2"/></svg>`,
   book: `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 1h9a1 1 0 011 1v9a1 1 0 01-1 1H2a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M4 4h5M4 6.5h5M4 9h3"/><path d="M1 4h12"/></svg>`,
-  diary:`<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 1h9a1 1 0 011 1v9a1 1 0 01-1 1H2a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M4 4h5M4 6.5h5M4 9h3"/><path d="M1 4h2"/></svg>`,
 };
 
 const NAVS = {
   admin:[
-    {lbl:'Main',    items:[{id:'dash',    ic:'grid', t:'Dashboard'}]},
-    {lbl:'Manage',  items:[{id:'students',ic:'users',t:'Students'},{id:'att',ic:'chk',t:'Attendance'},{id:'fees',ic:'card',t:'Fees'},{id:'ann',ic:'bell',t:'Announcements'},{id:'diary',ic:'diary',t:'Diary'},{id:'papers',ic:'doc',t:'Paper Info'},{id:'results',ic:'chart',t:'Results'}]},
-    {lbl:'Diary',  items:[{id:'diary',ic:'bell',t:'Class Diary'}]},
-    {lbl:'Diary',   items:[{id:'diary',    ic:'book',t:'Class Diary'}]},
-    {lbl:'Academics',items:[{id:'diary',ic:'book',t:'Diary / Homework'}]},
-    {lbl:'Settings',items:[{id:'classes',ic:'cog',t:'Classes'},{id:'usermgmt',ic:'users',t:'Users'},{id:'sms',ic:'sms',t:'SMS Logs'}]},
+    {lbl:'Main',     items:[{id:'dash',ic:'grid',t:'Dashboard'}]},
+    {lbl:'Manage',   items:[{id:'students',ic:'users',t:'Students'},{id:'att',ic:'chk',t:'Attendance'},{id:'fees',ic:'card',t:'Fees'},{id:'ann',ic:'bell',t:'Announcements'},{id:'papers',ic:'doc',t:'Paper Info'},{id:'results',ic:'chart',t:'Results'}]},
+    {lbl:'Academics',items:[{id:'diary',ic:'diary',t:'Class Diary'}]},
+    {lbl:'Settings', items:[{id:'classes',ic:'cog',t:'Classes'},{id:'usermgmt',ic:'users',t:'Users'},{id:'sms',ic:'sms',t:'SMS Logs'}]},
   ],
   teacher:[
     {lbl:'Portal',items:[{id:'t-dash',ic:'grid',t:'Dashboard'},{id:'att',ic:'chk',t:'Attendance'},{id:'diary',ic:'diary',t:'Diary'},{id:'results',ic:'chart',t:'Results'},{id:'papers',ic:'doc',t:'Papers'},{id:'ann',ic:'bell',t:'Notices'}]},
@@ -104,7 +101,6 @@ const NAVS = {
 };
 
 const TITLES={
-  diary:'Diary & Homework',diary:'Class Diary',diary:'Daily Diary',
   dash:'Dashboard',students:'Students',att:'Attendance',fees:'Fees',ann:'Announcements',papers:'Paper Info',results:'Results',classes:'Classes',usermgmt:'Users',sms:'SMS Logs',
   diary:'Class Diary',
   't-dash':'Dashboard','s-dash':'My Dashboard','p-dash':'Child Overview','p-notif':'Notifications',
@@ -271,13 +267,9 @@ async function render(id){
     else if(id==='papers')    await secPapers(c);
     else if(id==='results')   await secResults(c);
     else if(id==='diary')     await secDiary(c);
-    else if(id==='diary')     await secDiary(c);
     else if(id==='classes')   await secClasses(c);
     else if(id==='usermgmt')  await secUsers(c);
     else if(id==='sms')       await secSMS(c);
-    else if(id==='diary')      await secDiary(c);
-    else if(id==='diary')     await secDiary(c);
-    else if(id==='diary')     await secDiary(c);
     else if(id==='s-att')     await secMyAtt(c);
     else if(id==='s-fees')    await secMyFees(c);
     else if(id==='s-papers')  await secMyPapers(c);
