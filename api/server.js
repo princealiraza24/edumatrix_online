@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
-const webpush = require('web-push');
 
 const app = express();
 app.use(cors());
@@ -13,12 +12,6 @@ const supabase = createClient(
 );
 
 const SCHOOL_ID = '00000000-0000-0000-0000-000000000001';
-
-webpush.setVapidDetails(
-  'mailto:admin@edumatrix.pk',
-  process.env.VAPID_PUBLIC_KEY || 'BKNbHEw95d4wgaP4m0njpXbPcGRrFC7Wy5aEV4s_XrwGA0gQOr0rJUcoHNLA_NwD0y-i9vUNspPWoPv6etOcj6c',
-  process.env.VAPID_PRIVATE_KEY || 'rENa_MqBxGDBBI3C2affiw1fDgBZFX-bCT_OxYICB8U'
-);
 
 // ── AUTH ───────────────────────────────────────────────────────────────────
 app.post('/api/login', async (req, res) => {
@@ -34,23 +27,28 @@ app.post('/api/login', async (req, res) => {
 
   let linked_student = null;
   if (data.role === 'student') {
-    const { data: stu } = await supabase.from('students').select('*')
-      .eq('school_id', SCHOOL_ID).eq('student_user_id', data.id).single();
+    const { data: stu } = await supabase
+      .from('students').select('*')
+      .eq('school_id', SCHOOL_ID)
+      .eq('student_user_id', data.id).single();
     linked_student = stu || null;
   }
   if (data.role === 'parent') {
-    const { data: stu } = await supabase.from('students').select('*')
-      .eq('school_id', SCHOOL_ID).eq('parent_user_id', data.id).single();
+    const { data: stu } = await supabase
+      .from('students').select('*')
+      .eq('school_id', SCHOOL_ID)
+      .eq('parent_user_id', data.id).single();
     linked_student = stu || null;
   }
+
   res.json({ ok: true, user: { ...data, linked_student } });
 });
 
 // ── STUDENTS ───────────────────────────────────────────────────────────────
 app.get('/api/students', async (req, res) => {
   const { search, cls, section } = req.query;
-  let q = supabase.from('students').select('*').eq('school_id', SCHOOL_ID)
-    .order('class').order('section').order('roll_no');
+  let q = supabase.from('students').select('*')
+    .eq('school_id', SCHOOL_ID).order('class').order('section').order('roll_no');
   if (search) q = q.or(`name.ilike.%${search}%,roll_no.ilike.%${search}%`);
   if (cls) q = q.eq('class', cls);
   if (section) q = q.eq('section', section);
@@ -59,45 +57,68 @@ app.get('/api/students', async (req, res) => {
 });
 
 app.post('/api/students', async (req, res) => {
+  const body = req.body;
+  // Check if roll_no already exists in SAME class only
+  const { data: existing } = await supabase.from('students')
+    .select('id').eq('school_id', SCHOOL_ID)
+    .eq('class', body.class).eq('roll_no', body.roll_no).single();
+  if (existing) {
+    return res.json({ ok: false, error: `Roll No ${body.roll_no} already exists in Class ${body.class}` });
+  }
+  // Use a unique roll_no by combining class+roll for DB uniqueness
+  const dbRollNo = body.class + '-' + body.roll_no;
   const { data, error } = await supabase.from('students')
-    .insert({ ...req.body, school_id: SCHOOL_ID }).select().single();
-  res.json(error ? { ok: false, error: error.message } : { ok: true, data });
+    .insert({ ...body, roll_no: dbRollNo, display_roll: body.roll_no, school_id: SCHOOL_ID })
+    .select().single();
+  if (error) {
+    // Fallback - try inserting with original roll_no
+    const { data: d2, error: e2 } = await supabase.from('students')
+      .insert({ ...body, school_id: SCHOOL_ID }).select().single();
+    return res.json(e2 ? { ok: false, error: 'Roll No already exists in this school' } : { ok: true, data: d2 });
+  }
+  res.json({ ok: true, data });
 });
 
 app.put('/api/students/:id', async (req, res) => {
-  const { error } = await supabase.from('students').update(req.body)
+  const { data, error } = await supabase
+    .from('students').update(req.body)
     .eq('id', req.params.id).eq('school_id', SCHOOL_ID);
   res.json(error ? { ok: false, error: error.message } : { ok: true });
 });
 
 app.delete('/api/students/:id', async (req, res) => {
-  const { error } = await supabase.from('students').delete()
+  const { error } = await supabase
+    .from('students').delete()
     .eq('id', req.params.id).eq('school_id', SCHOOL_ID);
   res.json(error ? { ok: false } : { ok: true });
 });
 
 app.get('/api/students/:id', async (req, res) => {
-  const { data } = await supabase.from('students').select('*')
-    .eq('id', req.params.id).single();
+  const { data } = await supabase
+    .from('students').select('*').eq('id', req.params.id).single();
   res.json(data || null);
 });
 
 // ── ATTENDANCE ─────────────────────────────────────────────────────────────
 app.get('/api/attendance/student', async (req, res) => {
   const { student_id, month } = req.query;
-  const { data } = await supabase.from('attendance').select('*')
-    .eq('school_id', SCHOOL_ID).eq('student_id', student_id)
-    .gte('date', month + '-01').lte('date', month + '-31')
+  const { data } = await supabase
+    .from('attendance').select('*')
+    .eq('school_id', SCHOOL_ID)
+    .eq('student_id', student_id)
+    .gte('date', month + '-01')
+    .lte('date', month + '-31')
     .order('date', { ascending: false });
   res.json(data || []);
 });
 
 app.get('/api/attendance', async (req, res) => {
   const { cls, section, date } = req.query;
-  const { data: students } = await supabase.from('students')
-    .select('id, roll_no, name').eq('school_id', SCHOOL_ID)
-    .eq('class', cls).eq('section', section).order('roll_no');
-  const { data: att } = await supabase.from('attendance').select('*')
+  const { data: students } = await supabase
+    .from('students').select('id, roll_no, name')
+    .eq('school_id', SCHOOL_ID).eq('class', cls).eq('section', section).order('roll_no');
+  const { data: att } = await supabase
+    .from('attendance').select('*')
     .eq('school_id', SCHOOL_ID).eq('date', date);
   const attMap = {};
   (att || []).forEach(a => attMap[a.student_id] = a);
@@ -115,26 +136,17 @@ app.post('/api/attendance', async (req, res) => {
     school_id: SCHOOL_ID, student_id: r.student_id,
     date, status: r.status, note: r.note || ''
   }));
-  const { error } = await supabase.from('attendance')
-    .upsert(upserts, { onConflict: 'school_id,student_id,date' });
+  const { error } = await supabase
+    .from('attendance').upsert(upserts, { onConflict: 'school_id,student_id,date' });
 
   const absent = records.filter(r => r.status === 'Absent');
   for (const a of absent) {
-    const { data: stu } = await supabase.from('students')
-      .select('name, parent_contact, parent_user_id')
+    const { data: stu } = await supabase
+      .from('students').select('name, parent_contact')
       .eq('id', a.student_id).single();
-    if (stu) {
-      if (stu.parent_contact) {
-        await sendSMS(stu.parent_contact,
-          `Dear Parent, your child ${stu.name} was ABSENT on ${date}. - EduMatrix School`);
-      }
-      if (stu.parent_user_id) {
-        await sendPushToUser(
-          stu.parent_user_id,
-          `🔴 Absence Alert — ${stu.name}`,
-          `Your child ${stu.name} was marked ABSENT today (${date}). Please contact school if needed.`
-        );
-      }
+    if (stu?.parent_contact) {
+      await sendSMS(stu.parent_contact,
+        `Dear Parent, your child ${stu.name} was ABSENT on ${date}. - EduMatrix School`);
     }
   }
   res.json(error ? { ok: false } : { ok: true });
@@ -142,11 +154,12 @@ app.post('/api/attendance', async (req, res) => {
 
 app.get('/api/attendance/summary', async (req, res) => {
   const { cls, section, month } = req.query;
-  const { data: students } = await supabase.from('students')
-    .select('id, roll_no, name').eq('school_id', SCHOOL_ID)
-    .eq('class', cls).eq('section', section).order('roll_no');
-  const { data: att } = await supabase.from('attendance')
-    .select('student_id, status').eq('school_id', SCHOOL_ID)
+  const { data: students } = await supabase
+    .from('students').select('id, roll_no, name')
+    .eq('school_id', SCHOOL_ID).eq('class', cls).eq('section', section).order('roll_no');
+  const { data: att } = await supabase
+    .from('attendance').select('student_id, status')
+    .eq('school_id', SCHOOL_ID)
     .gte('date', month + '-01').lte('date', month + '-31');
   const summary = (students || []).map(s => {
     const rows = (att || []).filter(a => a.student_id === s.id);
@@ -164,36 +177,44 @@ app.get('/api/attendance/summary', async (req, res) => {
 // ── FEES ───────────────────────────────────────────────────────────────────
 app.get('/api/fees/student', async (req, res) => {
   const { student_id } = req.query;
-  const { data } = await supabase.from('fees').select('*')
-    .eq('school_id', SCHOOL_ID).eq('student_id', student_id)
+  const { data } = await supabase
+    .from('fees').select('*')
+    .eq('school_id', SCHOOL_ID)
+    .eq('student_id', student_id)
     .order('month', { ascending: false });
   res.json(data || []);
 });
 
 app.get('/api/fees', async (req, res) => {
   const { cls, month } = req.query;
-  let q = supabase.from('fees').select('*, students(name, roll_no, class, section)')
+  let q = supabase.from('fees')
+    .select('*, students(name, roll_no, class, section)')
     .eq('school_id', SCHOOL_ID);
   if (month) q = q.eq('month', month);
   const { data, error } = await q;
   if (error) return res.json([]);
   let result = data.map(f => ({
-    ...f, name: f.students?.name, roll_no: f.students?.roll_no,
-    class: f.students?.class, section: f.students?.section
+    ...f,
+    name: f.students?.name,
+    roll_no: f.students?.roll_no,
+    class: f.students?.class,
+    section: f.students?.section
   }));
   if (cls) result = result.filter(f => f.class === cls);
   res.json(result);
 });
 
 app.post('/api/fees/upsert', async (req, res) => {
-  const { error } = await supabase.from('fees')
-    .upsert({ ...req.body, school_id: SCHOOL_ID }, { onConflict: 'school_id,student_id,month' });
+  const { error } = await supabase
+    .from('fees').upsert({ ...req.body, school_id: SCHOOL_ID },
+    { onConflict: 'school_id,student_id,month' });
   res.json(error ? { ok: false, error: error.message } : { ok: true });
 });
 
 app.post('/api/fees/generate', async (req, res) => {
   const { month, amount_due, cls } = req.body;
-  let q = supabase.from('students').select('id').eq('school_id', SCHOOL_ID).eq('status', 'Active');
+  let q = supabase.from('students').select('id')
+    .eq('school_id', SCHOOL_ID).eq('status', 'Active');
   if (cls) q = q.eq('class', cls);
   const { data: students } = await q;
   const rows = (students || []).map(s => ({
@@ -214,11 +235,6 @@ app.get('/api/announcements', async (req, res) => {
 app.post('/api/announcements', async (req, res) => {
   const { data, error } = await supabase.from('announcements')
     .insert({ ...req.body, school_id: SCHOOL_ID }).select().single();
-  if (!error && data) {
-    await sendPushToRole('student', '📢 School Notice — ' + data.title, data.body || 'Tap to view in EduMatrix app.');
-    await sendPushToRole('parent',  '📢 School Notice — ' + data.title, data.body || 'Tap to view in EduMatrix app.');
-    await sendPushToRole('teacher', '📢 New Announcement — ' + data.title, data.body || 'Tap to view in EduMatrix app.');
-  }
   res.json(error ? { ok: false } : { ok: true, data });
 });
 
@@ -230,7 +246,8 @@ app.delete('/api/announcements/:id', async (req, res) => {
 // ── PAPERS ─────────────────────────────────────────────────────────────────
 app.get('/api/papers', async (req, res) => {
   const { cls } = req.query;
-  let q = supabase.from('papers').select('*').eq('school_id', SCHOOL_ID).order('exam_date');
+  let q = supabase.from('papers').select('*')
+    .eq('school_id', SCHOOL_ID).order('exam_date');
   if (cls) q = q.eq('class', cls);
   const { data } = await q;
   res.json(data || []);
@@ -250,17 +267,17 @@ app.delete('/api/papers/:id', async (req, res) => {
 // ── RESULTS ────────────────────────────────────────────────────────────────
 app.get('/api/results/student', async (req, res) => {
   const { student_id } = req.query;
-  const { data } = await supabase.from('results')
+  const { data: results } = await supabase.from('results')
     .select('*, papers(subject, total_marks, exam_date, class)')
     .eq('school_id', SCHOOL_ID).eq('student_id', student_id);
-  res.json(data || []);
+  res.json(results || []);
 });
 
 app.get('/api/results', async (req, res) => {
   const { cls, section, paper_id } = req.query;
   const { data: students } = await supabase.from('students')
-    .select('id, roll_no, name').eq('school_id', SCHOOL_ID)
-    .eq('class', cls).eq('section', section).order('roll_no');
+    .select('id, roll_no, name')
+    .eq('school_id', SCHOOL_ID).eq('class', cls).eq('section', section).order('roll_no');
   const { data: paper } = await supabase.from('papers')
     .select('total_marks').eq('id', paper_id).single();
   const { data: results } = await supabase.from('results')
@@ -268,7 +285,9 @@ app.get('/api/results', async (req, res) => {
   const resMap = {};
   (results || []).forEach(r => resMap[r.student_id] = r.marks_obtained);
   const out = (students || []).map(s => ({
-    ...s, marks_obtained: resMap[s.id] || 0, total_marks: paper?.total_marks || 100
+    ...s,
+    marks_obtained: resMap[s.id] || 0,
+    total_marks: paper?.total_marks || 100
   }));
   res.json(out);
 });
@@ -388,8 +407,8 @@ app.post('/api/diary', async (req, res) => {
 });
 
 app.put('/api/diary/:id', async (req, res) => {
-  const { error } = await supabase.from('diaries').update(req.body)
-    .eq('id', req.params.id).eq('school_id', SCHOOL_ID);
+  const { error } = await supabase.from('diaries')
+    .update(req.body).eq('id', req.params.id).eq('school_id', SCHOOL_ID);
   res.json(error ? { ok: false } : { ok: true });
 });
 
@@ -398,65 +417,6 @@ app.delete('/api/diary/:id', async (req, res) => {
     .eq('id', req.params.id).eq('school_id', SCHOOL_ID);
   res.json({ ok: true });
 });
-
-// ── PUSH NOTIFICATIONS ─────────────────────────────────────────────────────
-app.post('/api/push/subscribe', async (req, res) => {
-  const { subscription, user_id } = req.body;
-  await supabase.from('push_subscriptions').upsert({
-    school_id: SCHOOL_ID, user_id,
-    subscription: JSON.stringify(subscription),
-    created_at: new Date().toISOString()
-  }, { onConflict: 'user_id' });
-  res.json({ ok: true });
-});
-
-app.delete('/api/push/unsubscribe', async (req, res) => {
-  const { user_id } = req.body;
-  await supabase.from('push_subscriptions').delete().eq('user_id', user_id);
-  res.json({ ok: true });
-});
-
-app.post('/api/push/test', async (req, res) => {
-  const { user_id, title, body } = req.body;
-  await sendPushToUser(
-    user_id,
-    title || '✅ EduMatrix Notifications Active',
-    body  || 'Notifications working! You will be alerted when your child is absent.'
-  );
-  res.json({ ok: true });
-});
-
-async function sendPushToUser(user_id, title, body, url='/') {
-  try {
-    const { data } = await supabase.from('push_subscriptions')
-      .select('subscription').eq('user_id', user_id).single();
-    if (!data) return;
-    const sub = JSON.parse(data.subscription);
-    await webpush.sendNotification(sub, JSON.stringify({ title, body, url }));
-    console.log('Push sent to user:', user_id);
-  } catch(e) { console.error('Push error:', e.message); }
-}
-
-async function sendPushToRole(role, title, body) {
-  try {
-    const { data: subs } = await supabase.from('push_subscriptions')
-      .select('subscription, user_id').eq('school_id', SCHOOL_ID);
-    if (!subs?.length) return;
-    const { data: users } = await supabase.from('users')
-      .select('id').eq('school_id', SCHOOL_ID).eq('role', role);
-    const userIds = new Set((users||[]).map(u => u.id));
-    for (const s of subs) {
-      if (userIds.has(s.user_id)) {
-        try {
-          await webpush.sendNotification(
-            JSON.parse(s.subscription),
-            JSON.stringify({ title, body })
-          );
-        } catch(e) { console.error('Push failed:', e.message); }
-      }
-    }
-  } catch(e) { console.error('Push broadcast error:', e.message); }
-}
 
 // ── SMS ────────────────────────────────────────────────────────────────────
 async function sendSMS(to, message) {
@@ -471,7 +431,7 @@ async function sendSMS(to, message) {
       });
     }
     console.log('SMS sent to:', to);
-  } catch(e) { console.error('SMS error:', e.message); }
+  } catch (e) { console.error('SMS error:', e.message); }
 }
 
 app.post('/api/sms/test', async (req, res) => {
