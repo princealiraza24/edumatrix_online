@@ -121,18 +121,28 @@ app.post('/api/attendance', async (req, res) => {
   const absent = records.filter(r => r.status === 'Absent');
   for (const a of absent) {
     const { data: stu } = await supabase.from('students')
-      .select('name, parent_contact, parent_user_id')
+      .select('name, parent_contact, parent_user_id, callmebot_key')
       .eq('id', a.student_id).single();
     if (stu) {
+      // Send SMS
       if (stu.parent_contact) {
         await sendSMS(stu.parent_contact,
           `Dear Parent, your child ${stu.name} was ABSENT on ${date}. - EduMatrix School`);
       }
+      // Send Push Notification
       if (stu.parent_user_id) {
         await sendPushToUser(
           stu.parent_user_id,
           `🔴 Absence Alert — ${stu.name}`,
           `Your child ${stu.name} was marked ABSENT today (${date}). Please contact school if needed.`
+        );
+      }
+      // Send WhatsApp via CallMeBot
+      if (stu.parent_contact && stu.callmebot_key) {
+        await sendWhatsApp(
+          stu.parent_contact,
+          stu.callmebot_key,
+          `🔴 Absence Alert!\n\nDear Parent, your child *${stu.name}* was marked *ABSENT* today (${date}).\n\nPlease contact school if needed.\n\n— EduMatrix School\nPowered by Zyveron Technologies`
         );
       }
     }
@@ -457,6 +467,33 @@ async function sendPushToRole(role, title, body) {
     }
   } catch(e) { console.error('Push broadcast error:', e.message); }
 }
+
+// ── WHATSAPP via CallMeBot ─────────────────────────────────────────────────
+async function sendWhatsApp(phone, apikey, message) {
+  try {
+    if (!phone || !apikey) return;
+    const intlPhone = '92' + phone.replace(/^0/, '').replace(/[-\s]/g, '');
+    const encodedMsg = encodeURIComponent(message);
+    const url = `https://api.callmebot.com/whatsapp.php?phone=${intlPhone}&text=${encodedMsg}&apikey=${apikey}`;
+    const response = await fetch(url);
+    const text = await response.text();
+    console.log('WhatsApp sent to:', phone, '| Response:', text);
+  } catch(e) {
+    console.error('WhatsApp error:', e.message);
+  }
+}
+
+// WhatsApp test route
+app.post('/api/whatsapp/test', async (req, res) => {
+  const { phone, apikey } = req.body;
+  if (!phone || !apikey) return res.json({ ok: false, error: 'Phone and API key required' });
+  await sendWhatsApp(
+    phone,
+    apikey,
+    `✅ Test Message!\n\nWhatsApp alerts are working for EduMatrix School.\nPowered by Zyveron Technologies.`
+  );
+  res.json({ ok: true });
+});
 
 // ── SMS ────────────────────────────────────────────────────────────────────
 async function sendSMS(to, message) {
