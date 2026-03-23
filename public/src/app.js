@@ -501,7 +501,7 @@ async function secStudents(c){
     const d={
       roll_no:v('sf-r'),name:v('sf-n'),father_name:v('sf-f'),
       class:v('sf-cl'),section:v('sf-s'),contact:v('sf-c'),
-      parent_contact:v('sf-pc'),dob:v('sf-d'),status:v('sf-st')||'Active',
+     parent_contact:v('sf-pc'),callmebot_key:v('sf-cbk')||null,dob:v('sf-d'),status:v('sf-st')||'Active',
       student_user_id:v('sf-stu-uid')||null,
       parent_user_id:v('sf-par-uid')||null
     };
