@@ -455,6 +455,7 @@ async function secStudents(c){
     <div class="field"><label>Father's Name</label><input id="sf-f" value="${s.father_name||''}"></div>
     <div class="field"><label>Contact</label><input id="sf-c" value="${s.contact||''}"></div>
     <div class="field"><label>Parent Contact (for SMS)</label><input id="sf-pc" value="${s.parent_contact||''}"></div>
+    <div class="field"><label>Parent WhatsApp Key (CallMeBot)</label><input id="sf-cbk" value="${s.callmebot_key||''}" placeholder="e.g. 1234567"></div>
     <div class="field"><label>Date of Birth</label><input type="date" id="sf-d" value="${s.dob||''}"></div>
     <div class="field"><label>Class *</label><select id="sf-cl" onchange="updSec()">${clsOpts(s.class||'',false)}</select></div>
     <div class="field"><label>Section *</label><select id="sf-s">${s.class?secOpts(s.class,s.section||''):'<option>Select class first</option>'}</select></div>
