@@ -62,6 +62,24 @@
   /* Motion */
   --ease: cubic-bezier(0.4,0,0.2,1);
   --dur:  0.18s;
+
+  /* ── BACKWARD COMPAT — old var names used in app.js inline styles ── */
+  --text:    #e2e8f8;
+  --text2:   rgba(180,205,255,0.55);
+  --text3:   rgba(140,170,230,0.38);
+  --border:  rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --bg:      #070b16;
+  --bg2:     #0d1221;
+  --bg3:     #111827;
+  --blue-l:  rgba(59,142,240,0.14);
+  --blue-t:  #93c5fd;
+  --green-l: rgba(52,211,153,0.14);
+  --amber-l: rgba(251,191,36,0.14);
+  --red-l:   rgba(248,113,113,0.14);
+  --purple-l:rgba(167,139,250,0.14);
+  --purple-t:#c4b5fd;
+  --sb-w:    220px;
 }
 
 /* ── BASE ────────────────────────────────────────────────────── */
@@ -437,18 +455,34 @@ tbody tr:hover td{background:var(--bg-glass-hov);}
 /* ── FORMS ───────────────────────────────────────────────────── */
 .fg{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .frow{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+/* Shared input/select dark styling — scoped to avoid breaking layouts */
 .frow input,.frow select,
-input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]),
-select,textarea{
-  flex:1;min-width:100px;
+.field input,.field select,.field textarea{
   padding:8px 10px;
   border:1px solid var(--bdr-3);
   border-radius:var(--r);font-size:12px;
   background:var(--bg-glass);color:var(--txt);
   transition:border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
 }
+.frow input{flex:1;min-width:100px;}
+.frow select{flex:1;min-width:100px;}
+/* Generic bare inputs inside cards/modals (not login screen) */
+.card input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]),
+.card select,
+.card textarea,
+.modal-body input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]),
+.modal-body select,
+.modal-body textarea{
+  padding:8px 10px;width:100%;
+  border:1px solid var(--bdr-3);
+  border-radius:var(--r);font-size:12px;
+  background:var(--bg-glass);color:var(--txt);
+  transition:border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+}
 .frow input:focus,.frow select:focus,
-input:focus,select:focus,textarea:focus{
+.field input:focus,.field select:focus,.field textarea:focus,
+.card input:focus,.card select:focus,.card textarea:focus,
+.modal-body input:focus,.modal-body select:focus,.modal-body textarea:focus{
   outline:none;border-color:var(--blue);
   background:var(--bg-glass-hov);
   box-shadow:var(--shadow-glow);
