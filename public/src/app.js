@@ -2072,349 +2072,217 @@ async function secNotifications(c) {
       secNotifications(c);
     }
   };
-}
-/* ============================================================
-   EDUMATRIX — APP.JS VISUAL ENHANCEMENT ADDITIONS
-   Paste this entire block at the VERY BOTTOM of your app.js
-   (after all your existing code — do not modify anything above)
-   Safe: Only adds visual effects. Zero impact on API calls,
-   push notifications, Supabase queries, or service worker.
-   By Zyveron Technologies
-   ============================================================ */
 
+/* ================================================================
+   EDUMATRIX VISUALS — clean rewrite, isolated IIFE
+   Paste-safe: replaces previous visual block entirely.
+   Zero impact on API calls, push notifications, Supabase, SW.
+   ================================================================ */
 (function EduMatrixVisuals() {
+  'use strict';
 
-  /* ── STARFIELD CANVAS BACKGROUND ─────────────────────────── */
+  /* ── 1. STARFIELD ─────────────────────────────────────────── */
   function initStarfield() {
-    const canvas = document.createElement('canvas');
-    canvas.id = 'em-starfield-canvas';
-    document.body.insertBefore(canvas, document.body.firstChild);
+    const cv = document.createElement('canvas');
+    cv.id = 'em-starfield-canvas';
+    document.body.insertBefore(cv, document.body.firstChild);
+    const ctx = cv.getContext('2d');
 
-    const ctx = canvas.getContext('2d');
-    const stars = [];
-    const STAR_COUNT = 140;
+    let W, H, stars = [], frame = 0;
+    let orbX, orbY, orbDX = 0.12, orbDY = 0.07;
 
     function resize() {
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
+      W = cv.width  = window.innerWidth;
+      H = cv.height = window.innerHeight;
+      orbX = W * 0.75; orbY = H * 0.2;
     }
 
-    function buildStars() {
-      stars.length = 0;
-      for (let i = 0; i < STAR_COUNT; i++) {
-        stars.push({
-          x:       Math.random() * canvas.width,
-          y:       Math.random() * canvas.height,
-          r:       Math.random() * 1.3 + 0.2,
-          speed:   Math.random() * 0.25 + 0.04,
-          opacity: Math.random() * 0.55 + 0.15,
-          phase:   Math.random() * Math.PI * 2,
-          trail:   Math.random() > 0.92   // 8% of stars leave a subtle trail
-        });
-      }
+    function mkStars() {
+      stars = [];
+      for (let i = 0; i < 130; i++) stars.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: Math.random() * 1.2 + 0.2,
+        sp: Math.random() * 0.22 + 0.04,
+        op: Math.random() * 0.5 + 0.15,
+        ph: Math.random() * Math.PI * 2,
+        trail: Math.random() > 0.91
+      });
     }
 
-    // Subtle animated grid
     function drawGrid() {
-      const step = 48;
-      ctx.strokeStyle = 'rgba(80,160,255,0.035)';
+      ctx.strokeStyle = 'rgba(59,142,240,0.03)';
       ctx.lineWidth   = 0.5;
-      for (let x = 0; x < canvas.width;  x += step) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+      for (let x = 0; x < W; x += 46) {
+        ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
       }
-      for (let y = 0; y < canvas.height; y += step) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+      for (let y = 0; y < H; y += 46) {
+        ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
       }
     }
 
-    // Soft glow orb (drifts slowly)
-    let orbX = canvas.width  * 0.75;
-    let orbY = canvas.height * 0.25;
-    let orbDX = 0.15, orbDY = 0.08;
+    function tick() {
+      ctx.clearRect(0, 0, W, H);
 
-    function drawOrb() {
-      orbX += orbDX;
-      orbY += orbDY;
-      if (orbX > canvas.width  * 0.90 || orbX < canvas.width  * 0.50) orbDX *= -1;
-      if (orbY > canvas.height * 0.60 || orbY < canvas.height * 0.05) orbDY *= -1;
+      // Drifting orb
+      orbX += orbDX; orbY += orbDY;
+      if (orbX > W*.9 || orbX < W*.4) orbDX *= -1;
+      if (orbY > H*.6 || orbY < H*.04) orbDY *= -1;
+      const g = ctx.createRadialGradient(orbX,orbY,0,orbX,orbY,W*.38);
+      g.addColorStop(0,'rgba(59,142,240,0.09)');
+      g.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
 
-      const g = ctx.createRadialGradient(orbX, orbY, 0, orbX, orbY, canvas.width * 0.4);
-      g.addColorStop(0, 'rgba(37,99,235,0.10)');
-      g.addColorStop(1, 'rgba(10,14,26,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-
-    let frame = 0;
-    function animate() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawOrb();
       drawGrid();
 
       frame++;
       for (const s of stars) {
-        s.phase += 0.018;
-        const op = s.opacity * (0.65 + 0.35 * Math.sin(s.phase));
-
+        s.ph += 0.016;
+        const op = s.op * (0.6 + 0.4 * Math.sin(s.ph));
         if (s.trail) {
           ctx.beginPath();
-          ctx.moveTo(s.x, s.y);
-          ctx.lineTo(s.x, s.y + s.speed * 6);
-          ctx.strokeStyle = `rgba(140,200,255,${op * 0.35})`;
-          ctx.lineWidth = s.r * 0.6;
-          ctx.stroke();
+          ctx.moveTo(s.x, s.y); ctx.lineTo(s.x, s.y + s.sp * 8);
+          ctx.strokeStyle = `rgba(120,185,255,${op * 0.3})`;
+          ctx.lineWidth = s.r * 0.5; ctx.stroke();
         }
-
         ctx.beginPath();
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(180,215,255,${op})`;
-        ctx.fill();
-
-        s.y -= s.speed;
-        if (s.y + s.r < 0) {
-          s.y = canvas.height + s.r;
-          s.x = Math.random() * canvas.width;
-        }
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(190,220,255,${op})`; ctx.fill();
+        s.y -= s.sp;
+        if (s.y < -2) { s.y = H+2; s.x = Math.random()*W; }
       }
-
-      requestAnimationFrame(animate);
+      requestAnimationFrame(tick);
     }
 
-    resize();
-    buildStars();
-    animate();
+    resize(); mkStars(); tick();
+    window.addEventListener('resize', () => { resize(); mkStars(); });
+  }
 
-    window.addEventListener('resize', () => {
-      resize();
-      buildStars();
-      orbX = canvas.width * 0.75;
-      orbY = canvas.height * 0.25;
+  /* ── 2. COUNTER ANIMATION ─────────────────────────────────── */
+  function runCounters(root) {
+    const targets = (root || document).querySelectorAll('.stat-val');
+    targets.forEach(el => {
+      if (el._emDone) return;
+      const raw = parseFloat(el.innerText.replace(/[^0-9.]/g, ''));
+      if (isNaN(raw) || raw === 0) return;
+      el._emDone = true;
+      const suffix = el.innerText.replace(/[0-9,.\s]/g, '');
+      const t0 = performance.now();
+      const dur = 900;
+      (function step(now) {
+        const p = Math.min((now - t0) / dur, 1);
+        const ease = 1 - Math.pow(1 - p, 3);
+        el.innerText = Math.round(raw * ease).toLocaleString() + suffix;
+        if (p < 1) requestAnimationFrame(step);
+      })(t0);
     });
   }
 
-  /* ── STAT COUNTER ANIMATION ───────────────────────────────── */
-  /*
-    Finds elements with class .stat-num, .stat-value, .big-number, h2.count
-    and animates numbers counting up on page load / section switch.
-    Usage: add class "em-count" to any number element to activate.
-    OR it auto-detects elements matching the selectors below.
-  */
-  function animateCounters() {
-    const selectors = [
-      '.stat-num',
-      '.stat-value',
-      '.big-number',
-      '.em-count',
-      'h2.count',
-      '[data-count]'
-    ];
-
-    const elements = document.querySelectorAll(selectors.join(','));
-
-    elements.forEach(el => {
-      const raw    = el.getAttribute('data-count') || el.innerText.replace(/[^0-9.]/g, '');
-      const target = parseFloat(raw);
-      if (isNaN(target) || target === 0) return;
-
-      const prefix = el.innerText.replace(/[0-9.,]+/, '').trim().replace(/\d.*$/, '') || '';
-      const suffix = el.getAttribute('data-suffix') || '';
-      const duration = 1200;
-      const start    = performance.now();
-
-      el._emCountTarget = target;
-
-      function step(now) {
-        const elapsed = now - start;
-        const progress = Math.min(elapsed / duration, 1);
-        // Ease out cubic
-        const eased = 1 - Math.pow(1 - progress, 3);
-        const current = Math.round(target * eased);
-
-        el.innerText = prefix + current.toLocaleString() + suffix;
-
-        if (progress < 1) {
-          requestAnimationFrame(step);
-        } else {
-          el.innerText = prefix + target.toLocaleString() + suffix;
-        }
-      }
-
-      requestAnimationFrame(step);
-    });
-  }
-
-  /* ── SCROLL FADE-IN FOR CARDS & ROWS ─────────────────────── */
-  function initScrollFade() {
-    const fadeTargets = document.querySelectorAll(
-      '.card, .panel, .stat-card, .table-responsive, .info-card'
-    );
-
+  /* ── 3. SCROLL FADE-IN ────────────────────────────────────── */
+  function initFade(root) {
     if (!('IntersectionObserver' in window)) return;
+    const els = (root || document).querySelectorAll('.card,.stat-card,.tbl-wrap');
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        e.target.style.opacity   = '1';
+        e.target.style.transform = 'translateY(0)';
+        io.unobserve(e.target);
+      });
+    }, { threshold: 0.06 });
 
-    // Set initial state
-    fadeTargets.forEach((el, i) => {
+    els.forEach((el, i) => {
+      if (el._emFade) return;
+      el._emFade = true;
       el.style.opacity   = '0';
-      el.style.transform = 'translateY(16px)';
-      el.style.transition = `opacity 0.4s ease ${i * 40}ms, transform 0.4s ease ${i * 40}ms`;
-    });
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.style.opacity   = '1';
-          entry.target.style.transform = 'translateY(0)';
-          observer.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.08 });
-
-    fadeTargets.forEach(el => observer.observe(el));
-  }
-
-  /* ── LIVE INDICATOR ───────────────────────────────────────── */
-  /*
-    Adds a pulsing green dot next to any element with class .em-live-label.
-    Example in your HTML: <span class="em-live-label">Live</span>
-  */
-  function initLiveDots() {
-    document.querySelectorAll('.em-live-label').forEach(el => {
-      if (el.querySelector('.em-live-dot')) return;
-      const dot = document.createElement('span');
-      dot.className = 'em-live-dot';
-      el.insertBefore(dot, el.firstChild);
+      el.style.transform = 'translateY(14px)';
+      el.style.transition = `opacity 0.38s ease ${i * 35}ms, transform 0.38s ease ${i * 35}ms`;
+      io.observe(el);
     });
   }
 
-  /* ── RE-RUN ON SECTION / PAGE CHANGE ─────────────────────── */
-  /*
-    Your app.js uses showSection() or similar to switch views.
-    We observe DOM mutations to re-trigger visual effects when
-    new content is injected (attendance table, student list, etc.)
-    This is READ-ONLY and does not modify your data or API calls.
-  */
-  function observeSectionChanges() {
-    const mainArea = document.querySelector(
-      '.main-content, #main, #app, main, .content-area, .page-content'
-    );
-    if (!mainArea) return;
-
-    const mo = new MutationObserver(() => {
-      // Small delay so DOM settles before we measure
-      clearTimeout(window._emVisualTimer);
-      window._emVisualTimer = setTimeout(() => {
-        animateCounters();
-        initScrollFade();
-        initLiveDots();
-      }, 80);
-    });
-
-    mo.observe(mainArea, { childList: true, subtree: true });
-  }
-
-  /* ── BUTTON RIPPLE EFFECT ─────────────────────────────────── */
+  /* ── 4. BUTTON RIPPLE ─────────────────────────────────────── */
   function initRipple() {
-    document.addEventListener('click', function(e) {
-      const btn = e.target.closest('button, .btn, input[type="submit"]');
-      if (!btn) return;
-
-      const circle = document.createElement('span');
-      const d = Math.max(btn.offsetWidth, btn.offsetHeight);
-      const rect = btn.getBoundingClientRect();
-
-      circle.style.cssText = `
-        position: absolute;
-        width: ${d}px; height: ${d}px;
-        left: ${e.clientX - rect.left - d/2}px;
-        top:  ${e.clientY - rect.top  - d/2}px;
-        background: rgba(255,255,255,0.2);
-        border-radius: 50%;
-        transform: scale(0);
-        animation: em-ripple 0.5s linear;
-        pointer-events: none;
-      `;
-
-      const prevPos = btn.style.position;
-      btn.style.position = 'relative';
-      btn.style.overflow  = 'hidden';
-      btn.appendChild(circle);
-
-      circle.addEventListener('animationend', () => {
-        circle.remove();
-        if (!prevPos) btn.style.position = '';
-      });
-    });
-
-    // Inject ripple keyframe
-    if (!document.getElementById('em-ripple-style')) {
+    if (!document.getElementById('em-rk')) {
       const s = document.createElement('style');
-      s.id = 'em-ripple-style';
-      s.textContent = `@keyframes em-ripple { to { transform: scale(3); opacity: 0; } }`;
+      s.id = 'em-rk';
+      s.textContent = '@keyframes em-rk{to{transform:scale(3.5);opacity:0;}}';
       document.head.appendChild(s);
     }
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('button,.btn');
+      if (!btn) return;
+      const rc = btn.getBoundingClientRect();
+      const d  = Math.max(btn.offsetWidth, btn.offsetHeight);
+      const sp = document.createElement('span');
+      sp.style.cssText = `
+        position:absolute;width:${d}px;height:${d}px;
+        left:${e.clientX-rc.left-d/2}px;top:${e.clientY-rc.top-d/2}px;
+        background:rgba(255,255,255,0.18);border-radius:50%;
+        transform:scale(0);pointer-events:none;
+        animation:em-rk .55s ease forwards;`;
+      const prev = btn.style.position;
+      btn.style.position = 'relative';
+      btn.style.overflow  = 'hidden';
+      btn.appendChild(sp);
+      sp.addEventListener('animationend', () => {
+        sp.remove();
+        if (!prev) btn.style.position = '';
+      });
+    });
   }
 
-  /* ── TOOLTIP ENHANCEMENT ─────────────────────────────────── */
-  /*
-    Add data-em-tip="Your text" to any element to get a
-    styled dark tooltip on hover. Zero dependency.
-  */
-  function initTooltips() {
-    let tip = document.getElementById('em-tooltip');
-    if (!tip) {
-      tip = document.createElement('div');
-      tip.id = 'em-tooltip';
-      tip.style.cssText = `
-        position: fixed;
-        background: rgba(10,14,30,0.96);
-        border: 1px solid rgba(99,179,255,0.25);
-        color: #e0eaff;
-        font-size: 12px;
-        padding: 5px 10px;
-        border-radius: 6px;
-        pointer-events: none;
-        z-index: 9999;
-        opacity: 0;
-        transition: opacity 0.15s;
-        white-space: nowrap;
-        backdrop-filter: blur(8px);
-      `;
-      document.body.appendChild(tip);
-    }
-
+  /* ── 5. TOOLTIP ───────────────────────────────────────────── */
+  function initTip() {
+    const tip = document.createElement('div');
+    tip.id = 'em-tip';
+    tip.style.cssText = `
+      position:fixed;background:#0d1221;
+      border:1px solid rgba(59,142,240,0.3);
+      color:#e2e8f8;font-size:11px;padding:5px 10px;
+      border-radius:7px;pointer-events:none;z-index:9999;
+      opacity:0;transition:opacity .15s;white-space:nowrap;
+      backdrop-filter:blur(8px);font-family:inherit;`;
+    document.body.appendChild(tip);
     document.addEventListener('mouseover', e => {
       const el = e.target.closest('[data-em-tip]');
       if (!el) return;
       tip.textContent = el.getAttribute('data-em-tip');
       tip.style.opacity = '1';
     });
-
     document.addEventListener('mousemove', e => {
       tip.style.left = (e.clientX + 12) + 'px';
-      tip.style.top  = (e.clientY - 28) + 'px';
+      tip.style.top  = (e.clientY - 30) + 'px';
     });
-
     document.addEventListener('mouseout', e => {
-      if (!e.target.closest('[data-em-tip]')) return;
-      tip.style.opacity = '0';
+      if (e.target.closest('[data-em-tip]')) tip.style.opacity = '0';
     });
   }
 
-  /* ── BOOT SEQUENCE ────────────────────────────────────────── */
-  function boot() {
-    try { initStarfield();          } catch(e) { console.warn('[EduMatrix Visuals] starfield:', e); }
-    try { initRipple();             } catch(e) { console.warn('[EduMatrix Visuals] ripple:', e); }
-    try { initTooltips();           } catch(e) { console.warn('[EduMatrix Visuals] tooltips:', e); }
-    try { initScrollFade();         } catch(e) { console.warn('[EduMatrix Visuals] scrollfade:', e); }
-    try { animateCounters();        } catch(e) { console.warn('[EduMatrix Visuals] counters:', e); }
-    try { initLiveDots();           } catch(e) { console.warn('[EduMatrix Visuals] livedots:', e); }
-    try { observeSectionChanges();  } catch(e) { console.warn('[EduMatrix Visuals] observer:', e); }
+  /* ── 6. MUTATION OBSERVER — re-run on section switch ─────── */
+  function watchDOM() {
+    const area = document.querySelector('.content,.main-wrap,#app,main');
+    if (!area) return;
+    const mo = new MutationObserver(() => {
+      clearTimeout(window._emT);
+      window._emT = setTimeout(() => { runCounters(); initFade(); }, 90);
+    });
+    mo.observe(area, { childList: true, subtree: true });
   }
 
-  // Wait for DOM — compatible with your existing DOMContentLoaded listeners
+  /* ── BOOT ─────────────────────────────────────────────────── */
+  function boot() {
+    try { initStarfield();  } catch(e) { console.warn('[EM]', e); }
+    try { initRipple();     } catch(e) { console.warn('[EM]', e); }
+    try { initTip();        } catch(e) { console.warn('[EM]', e); }
+    try { runCounters();    } catch(e) { console.warn('[EM]', e); }
+    try { initFade();       } catch(e) { console.warn('[EM]', e); }
+    try { watchDOM();       } catch(e) { console.warn('[EM]', e); }
+  }
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);
   } else {
     boot();
   }
-
-})(); // end EduMatrixVisuals — isolated IIFE, no global pollution
+})();
