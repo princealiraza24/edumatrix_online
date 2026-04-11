@@ -2072,216 +2072,137 @@ async function secNotifications(c) {
       secNotifications(c);
     }
   };
+}
 
 /* ================================================================
-   EDUMATRIX VISUALS — clean rewrite, isolated IIFE
-   Paste-safe: replaces previous visual block entirely.
-   Zero impact on API calls, push notifications, Supabase, SW.
+   EDUMATRIX VISUALS — isolated IIFE, safe to append
+   Zero impact on API, push notifications, Supabase, SW.
    ================================================================ */
 (function EduMatrixVisuals() {
   'use strict';
 
-  /* ── 1. STARFIELD ─────────────────────────────────────────── */
   function initStarfield() {
     const cv = document.createElement('canvas');
     cv.id = 'em-starfield-canvas';
     document.body.insertBefore(cv, document.body.firstChild);
     const ctx = cv.getContext('2d');
-
-    let W, H, stars = [], frame = 0;
-    let orbX, orbY, orbDX = 0.12, orbDY = 0.07;
-
+    let W, H, stars = [], orbX, orbY, orbDX = 0.12, orbDY = 0.07;
     function resize() {
-      W = cv.width  = window.innerWidth;
+      W = cv.width = window.innerWidth;
       H = cv.height = window.innerHeight;
       orbX = W * 0.75; orbY = H * 0.2;
     }
-
     function mkStars() {
       stars = [];
       for (let i = 0; i < 130; i++) stars.push({
-        x: Math.random() * W,
-        y: Math.random() * H,
-        r: Math.random() * 1.2 + 0.2,
-        sp: Math.random() * 0.22 + 0.04,
-        op: Math.random() * 0.5 + 0.15,
-        ph: Math.random() * Math.PI * 2,
+        x: Math.random()*W, y: Math.random()*H,
+        r: Math.random()*1.2+0.2, sp: Math.random()*0.22+0.04,
+        op: Math.random()*0.5+0.15, ph: Math.random()*Math.PI*2,
         trail: Math.random() > 0.91
       });
     }
-
     function drawGrid() {
-      ctx.strokeStyle = 'rgba(59,142,240,0.03)';
-      ctx.lineWidth   = 0.5;
-      for (let x = 0; x < W; x += 46) {
-        ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
-      }
-      for (let y = 0; y < H; y += 46) {
-        ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
-      }
+      ctx.strokeStyle = 'rgba(59,142,240,0.03)'; ctx.lineWidth = 0.5;
+      for (let x=0; x<W; x+=46) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+      for (let y=0; y<H; y+=46) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
     }
-
     function tick() {
-      ctx.clearRect(0, 0, W, H);
-
-      // Drifting orb
-      orbX += orbDX; orbY += orbDY;
-      if (orbX > W*.9 || orbX < W*.4) orbDX *= -1;
-      if (orbY > H*.6 || orbY < H*.04) orbDY *= -1;
-      const g = ctx.createRadialGradient(orbX,orbY,0,orbX,orbY,W*.38);
-      g.addColorStop(0,'rgba(59,142,240,0.09)');
-      g.addColorStop(1,'rgba(0,0,0,0)');
-      ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
-
+      ctx.clearRect(0,0,W,H);
+      orbX+=orbDX; orbY+=orbDY;
+      if(orbX>W*.9||orbX<W*.4) orbDX*=-1;
+      if(orbY>H*.6||orbY<H*.04) orbDY*=-1;
+      const g=ctx.createRadialGradient(orbX,orbY,0,orbX,orbY,W*.38);
+      g.addColorStop(0,'rgba(59,142,240,0.09)'); g.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
       drawGrid();
-
-      frame++;
       for (const s of stars) {
-        s.ph += 0.016;
-        const op = s.op * (0.6 + 0.4 * Math.sin(s.ph));
-        if (s.trail) {
-          ctx.beginPath();
-          ctx.moveTo(s.x, s.y); ctx.lineTo(s.x, s.y + s.sp * 8);
-          ctx.strokeStyle = `rgba(120,185,255,${op * 0.3})`;
-          ctx.lineWidth = s.r * 0.5; ctx.stroke();
-        }
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
-        ctx.fillStyle = `rgba(190,220,255,${op})`; ctx.fill();
-        s.y -= s.sp;
-        if (s.y < -2) { s.y = H+2; s.x = Math.random()*W; }
+        s.ph+=0.016;
+        const op=s.op*(0.6+0.4*Math.sin(s.ph));
+        if(s.trail){ ctx.beginPath(); ctx.moveTo(s.x,s.y); ctx.lineTo(s.x,s.y+s.sp*8); ctx.strokeStyle=`rgba(120,185,255,${op*0.3})`; ctx.lineWidth=s.r*0.5; ctx.stroke(); }
+        ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fillStyle=`rgba(190,220,255,${op})`; ctx.fill();
+        s.y-=s.sp; if(s.y<-2){s.y=H+2;s.x=Math.random()*W;}
       }
       requestAnimationFrame(tick);
     }
-
     resize(); mkStars(); tick();
-    window.addEventListener('resize', () => { resize(); mkStars(); });
+    window.addEventListener('resize',()=>{resize();mkStars();});
   }
 
-  /* ── 2. COUNTER ANIMATION ─────────────────────────────────── */
   function runCounters(root) {
-    const targets = (root || document).querySelectorAll('.stat-val');
-    targets.forEach(el => {
-      if (el._emDone) return;
-      const raw = parseFloat(el.innerText.replace(/[^0-9.]/g, ''));
-      if (isNaN(raw) || raw === 0) return;
-      el._emDone = true;
-      const suffix = el.innerText.replace(/[0-9,.\s]/g, '');
-      const t0 = performance.now();
-      const dur = 900;
-      (function step(now) {
-        const p = Math.min((now - t0) / dur, 1);
-        const ease = 1 - Math.pow(1 - p, 3);
-        el.innerText = Math.round(raw * ease).toLocaleString() + suffix;
-        if (p < 1) requestAnimationFrame(step);
+    (root||document).querySelectorAll('.stat-val').forEach(el=>{
+      if(el._emDone) return;
+      const raw=parseFloat(el.innerText.replace(/[^0-9.]/g,''));
+      if(isNaN(raw)||raw===0) return;
+      el._emDone=true;
+      const suffix=el.innerText.replace(/[0-9,.\s]/g,'');
+      const t0=performance.now(), dur=900;
+      (function step(now){
+        const p=Math.min((now-t0)/dur,1);
+        const ease=1-Math.pow(1-p,3);
+        el.innerText=Math.round(raw*ease).toLocaleString()+suffix;
+        if(p<1) requestAnimationFrame(step);
       })(t0);
     });
   }
 
-  /* ── 3. SCROLL FADE-IN ────────────────────────────────────── */
   function initFade(root) {
-    if (!('IntersectionObserver' in window)) return;
-    const els = (root || document).querySelectorAll('.card,.stat-card,.tbl-wrap');
-    const io = new IntersectionObserver(entries => {
-      entries.forEach(e => {
-        if (!e.isIntersecting) return;
-        e.target.style.opacity   = '1';
-        e.target.style.transform = 'translateY(0)';
-        io.unobserve(e.target);
+    if(!('IntersectionObserver' in window)) return;
+    const io=new IntersectionObserver(entries=>{
+      entries.forEach(e=>{
+        if(!e.isIntersecting) return;
+        e.target.style.opacity='1'; e.target.style.transform='translateY(0)'; io.unobserve(e.target);
       });
-    }, { threshold: 0.06 });
-
-    els.forEach((el, i) => {
-      if (el._emFade) return;
-      el._emFade = true;
-      el.style.opacity   = '0';
-      el.style.transform = 'translateY(14px)';
-      el.style.transition = `opacity 0.38s ease ${i * 35}ms, transform 0.38s ease ${i * 35}ms`;
+    },{threshold:0.06});
+    (root||document).querySelectorAll('.card,.stat-card,.tbl-wrap').forEach((el,i)=>{
+      if(el._emFade) return; el._emFade=true;
+      el.style.opacity='0'; el.style.transform='translateY(14px)';
+      el.style.transition=`opacity 0.38s ease ${i*35}ms,transform 0.38s ease ${i*35}ms`;
       io.observe(el);
     });
   }
 
-  /* ── 4. BUTTON RIPPLE ─────────────────────────────────────── */
   function initRipple() {
-    if (!document.getElementById('em-rk')) {
-      const s = document.createElement('style');
-      s.id = 'em-rk';
-      s.textContent = '@keyframes em-rk{to{transform:scale(3.5);opacity:0;}}';
+    if(!document.getElementById('em-rk')){
+      const s=document.createElement('style'); s.id='em-rk';
+      s.textContent='@keyframes em-rk{to{transform:scale(3.5);opacity:0;}}';
       document.head.appendChild(s);
     }
-    document.addEventListener('click', e => {
-      const btn = e.target.closest('button,.btn');
-      if (!btn) return;
-      const rc = btn.getBoundingClientRect();
-      const d  = Math.max(btn.offsetWidth, btn.offsetHeight);
-      const sp = document.createElement('span');
-      sp.style.cssText = `
-        position:absolute;width:${d}px;height:${d}px;
-        left:${e.clientX-rc.left-d/2}px;top:${e.clientY-rc.top-d/2}px;
-        background:rgba(255,255,255,0.18);border-radius:50%;
-        transform:scale(0);pointer-events:none;
-        animation:em-rk .55s ease forwards;`;
-      const prev = btn.style.position;
-      btn.style.position = 'relative';
-      btn.style.overflow  = 'hidden';
+    document.addEventListener('click',e=>{
+      const btn=e.target.closest('button,.btn'); if(!btn) return;
+      const rc=btn.getBoundingClientRect(), d=Math.max(btn.offsetWidth,btn.offsetHeight);
+      const sp=document.createElement('span');
+      sp.style.cssText=`position:absolute;width:${d}px;height:${d}px;left:${e.clientX-rc.left-d/2}px;top:${e.clientY-rc.top-d/2}px;background:rgba(255,255,255,0.18);border-radius:50%;transform:scale(0);pointer-events:none;animation:em-rk .55s ease forwards;`;
+      const prev=btn.style.position; btn.style.position='relative'; btn.style.overflow='hidden';
       btn.appendChild(sp);
-      sp.addEventListener('animationend', () => {
-        sp.remove();
-        if (!prev) btn.style.position = '';
-      });
+      sp.addEventListener('animationend',()=>{ sp.remove(); if(!prev) btn.style.position=''; });
     });
   }
 
-  /* ── 5. TOOLTIP ───────────────────────────────────────────── */
   function initTip() {
-    const tip = document.createElement('div');
-    tip.id = 'em-tip';
-    tip.style.cssText = `
-      position:fixed;background:#0d1221;
-      border:1px solid rgba(59,142,240,0.3);
-      color:#e2e8f8;font-size:11px;padding:5px 10px;
-      border-radius:7px;pointer-events:none;z-index:9999;
-      opacity:0;transition:opacity .15s;white-space:nowrap;
-      backdrop-filter:blur(8px);font-family:inherit;`;
+    const tip=document.createElement('div'); tip.id='em-tip';
+    tip.style.cssText='position:fixed;background:#0d1221;border:1px solid rgba(59,142,240,0.3);color:#e2e8f8;font-size:11px;padding:5px 10px;border-radius:7px;pointer-events:none;z-index:9999;opacity:0;transition:opacity .15s;white-space:nowrap;backdrop-filter:blur(8px);font-family:inherit;';
     document.body.appendChild(tip);
-    document.addEventListener('mouseover', e => {
-      const el = e.target.closest('[data-em-tip]');
-      if (!el) return;
-      tip.textContent = el.getAttribute('data-em-tip');
-      tip.style.opacity = '1';
-    });
-    document.addEventListener('mousemove', e => {
-      tip.style.left = (e.clientX + 12) + 'px';
-      tip.style.top  = (e.clientY - 30) + 'px';
-    });
-    document.addEventListener('mouseout', e => {
-      if (e.target.closest('[data-em-tip]')) tip.style.opacity = '0';
-    });
+    document.addEventListener('mouseover',e=>{ const el=e.target.closest('[data-em-tip]'); if(!el) return; tip.textContent=el.getAttribute('data-em-tip'); tip.style.opacity='1'; });
+    document.addEventListener('mousemove',e=>{ tip.style.left=(e.clientX+12)+'px'; tip.style.top=(e.clientY-30)+'px'; });
+    document.addEventListener('mouseout',e=>{ if(e.target.closest('[data-em-tip]')) tip.style.opacity='0'; });
   }
 
-  /* ── 6. MUTATION OBSERVER — re-run on section switch ─────── */
   function watchDOM() {
-    const area = document.querySelector('.content,.main-wrap,#app,main');
-    if (!area) return;
-    const mo = new MutationObserver(() => {
-      clearTimeout(window._emT);
-      window._emT = setTimeout(() => { runCounters(); initFade(); }, 90);
-    });
-    mo.observe(area, { childList: true, subtree: true });
+    const area=document.querySelector('.content,.main-wrap,#app,main'); if(!area) return;
+    new MutationObserver(()=>{ clearTimeout(window._emT); window._emT=setTimeout(()=>{ runCounters(); initFade(); },90); }).observe(area,{childList:true,subtree:true});
   }
 
-  /* ── BOOT ─────────────────────────────────────────────────── */
   function boot() {
-    try { initStarfield();  } catch(e) { console.warn('[EM]', e); }
-    try { initRipple();     } catch(e) { console.warn('[EM]', e); }
-    try { initTip();        } catch(e) { console.warn('[EM]', e); }
-    try { runCounters();    } catch(e) { console.warn('[EM]', e); }
-    try { initFade();       } catch(e) { console.warn('[EM]', e); }
-    try { watchDOM();       } catch(e) { console.warn('[EM]', e); }
+    try{initStarfield();}catch(e){console.warn('[EM]',e);}
+    try{initRipple();}catch(e){console.warn('[EM]',e);}
+    try{initTip();}catch(e){console.warn('[EM]',e);}
+    try{runCounters();}catch(e){console.warn('[EM]',e);}
+    try{initFade();}catch(e){console.warn('[EM]',e);}
+    try{watchDOM();}catch(e){console.warn('[EM]',e);}
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',boot);
   } else {
     boot();
   }
