@@ -2075,135 +2075,389 @@ async function secNotifications(c) {
 }
 
 /* ================================================================
-   EDUMATRIX VISUALS — isolated IIFE, safe to append
-   Zero impact on API, push notifications, Supabase, SW.
+   EDUMATRIX VISUALS v4.0 — Enhanced Edition
+   APPEND THIS ENTIRE BLOCK to the bottom of your app.js
+   (replaces the old EduMatrixVisuals IIFE at the bottom)
    ================================================================ */
 (function EduMatrixVisuals() {
   'use strict';
 
+  /* ── 1. STARFIELD ──────────────────────────────────────────── */
   function initStarfield() {
     const cv = document.createElement('canvas');
     cv.id = 'em-starfield-canvas';
     document.body.insertBefore(cv, document.body.firstChild);
     const ctx = cv.getContext('2d');
-    let W, H, stars = [], orbX, orbY, orbDX = 0.12, orbDY = 0.07;
+    let W, H, stars = [], nebX, nebY, nebDX = 0.10, nebDY = 0.06;
+
     function resize() {
-      W = cv.width = window.innerWidth;
+      W = cv.width  = window.innerWidth;
       H = cv.height = window.innerHeight;
-      orbX = W * 0.75; orbY = H * 0.2;
+      nebX = W * 0.72; nebY = H * 0.18;
     }
+
     function mkStars() {
       stars = [];
-      for (let i = 0; i < 130; i++) stars.push({
-        x: Math.random()*W, y: Math.random()*H,
-        r: Math.random()*1.2+0.2, sp: Math.random()*0.22+0.04,
-        op: Math.random()*0.5+0.15, ph: Math.random()*Math.PI*2,
-        trail: Math.random() > 0.91
+      const count = Math.min(160, Math.floor(W * H / 8000));
+      for (let i = 0; i < count; i++) stars.push({
+        x: Math.random() * W, y: Math.random() * H,
+        r: Math.random() * 1.3 + 0.2,
+        sp: Math.random() * 0.18 + 0.03,
+        op: Math.random() * 0.45 + 0.12,
+        ph: Math.random() * Math.PI * 2,
+        trail: Math.random() > 0.88,
+        twinkle: Math.random() * 0.025 + 0.01,
       });
     }
+
     function drawGrid() {
-      ctx.strokeStyle = 'rgba(59,142,240,0.03)'; ctx.lineWidth = 0.5;
-      for (let x=0; x<W; x+=46) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-      for (let y=0; y<H; y+=46) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+      ctx.strokeStyle = 'rgba(77,142,255,0.025)';
+      ctx.lineWidth = 0.5;
+      const gs = 44;
+      for (let x = 0; x < W; x += gs) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+      for (let y = 0; y < H; y += gs) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
     }
+
+    let frame = 0;
     function tick() {
-      ctx.clearRect(0,0,W,H);
-      orbX+=orbDX; orbY+=orbDY;
-      if(orbX>W*.9||orbX<W*.4) orbDX*=-1;
-      if(orbY>H*.6||orbY<H*.04) orbDY*=-1;
-      const g=ctx.createRadialGradient(orbX,orbY,0,orbX,orbY,W*.38);
-      g.addColorStop(0,'rgba(59,142,240,0.09)'); g.addColorStop(1,'rgba(0,0,0,0)');
-      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+      frame++;
+      ctx.clearRect(0, 0, W, H);
+
+      // Drifting nebula glow
+      nebX += nebDX; nebY += nebDY;
+      if (nebX > W * 0.88 || nebX < W * 0.35) nebDX *= -1;
+      if (nebY > H * 0.65  || nebY < H * 0.05) nebDY *= -1;
+
+      const ng = ctx.createRadialGradient(nebX, nebY, 0, nebX, nebY, W * 0.40);
+      ng.addColorStop(0, 'rgba(77,142,255,0.08)');
+      ng.addColorStop(0.5, 'rgba(176,125,255,0.03)');
+      ng.addColorStop(1, 'transparent');
+      ctx.fillStyle = ng;
+      ctx.fillRect(0, 0, W, H);
+
+      // Second smaller nebula
+      const ng2x = W * 0.15, ng2y = H * 0.80;
+      const ng2 = ctx.createRadialGradient(ng2x, ng2y, 0, ng2x, ng2y, W * 0.25);
+      ng2.addColorStop(0, 'rgba(45,212,170,0.04)');
+      ng2.addColorStop(1, 'transparent');
+      ctx.fillStyle = ng2;
+      ctx.fillRect(0, 0, W, H);
+
       drawGrid();
+
       for (const s of stars) {
-        s.ph+=0.016;
-        const op=s.op*(0.6+0.4*Math.sin(s.ph));
-        if(s.trail){ ctx.beginPath(); ctx.moveTo(s.x,s.y); ctx.lineTo(s.x,s.y+s.sp*8); ctx.strokeStyle=`rgba(120,185,255,${op*0.3})`; ctx.lineWidth=s.r*0.5; ctx.stroke(); }
-        ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fillStyle=`rgba(190,220,255,${op})`; ctx.fill();
-        s.y-=s.sp; if(s.y<-2){s.y=H+2;s.x=Math.random()*W;}
+        s.ph += s.twinkle;
+        const op = s.op * (0.55 + 0.45 * Math.sin(s.ph));
+
+        if (s.trail) {
+          ctx.beginPath();
+          ctx.moveTo(s.x, s.y);
+          ctx.lineTo(s.x, s.y + s.sp * 10);
+          ctx.strokeStyle = `rgba(140,195,255,${op * 0.25})`;
+          ctx.lineWidth = s.r * 0.4;
+          ctx.stroke();
+        }
+
+        // Star glow for larger ones
+        if (s.r > 1.0) {
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.r * 2.5, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(190,220,255,${op * 0.06})`;
+          ctx.fill();
+        }
+
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(200,225,255,${op})`;
+        ctx.fill();
+
+        s.y -= s.sp;
+        if (s.y < -3) { s.y = H + 3; s.x = Math.random() * W; }
       }
+
+      // Occasional shooting star
+      if (frame % 380 === 0) spawnShootingStar();
+
       requestAnimationFrame(tick);
     }
+
+    let shooter = null;
+    function spawnShootingStar() {
+      shooter = {
+        x: Math.random() * W * 0.6 + W * 0.2,
+        y: Math.random() * H * 0.3,
+        len: 120 + Math.random() * 80,
+        speed: 6 + Math.random() * 4,
+        angle: Math.PI / 4 + (Math.random() - 0.5) * 0.3,
+        life: 1,
+      };
+      const origTick = tick;
+      let sf = 0;
+      const shootTick = () => {
+        if (!shooter || sf++ > 60) { shooter = null; return; }
+        if (shooter) {
+          ctx.save();
+          ctx.globalAlpha = shooter.life;
+          const tx = shooter.x + Math.cos(shooter.angle) * shooter.len;
+          const ty = shooter.y + Math.sin(shooter.angle) * shooter.len;
+          const g = ctx.createLinearGradient(shooter.x, shooter.y, tx, ty);
+          g.addColorStop(0, 'rgba(255,255,255,0)');
+          g.addColorStop(1, 'rgba(160,210,255,0.7)');
+          ctx.strokeStyle = g;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(shooter.x, shooter.y);
+          ctx.lineTo(tx, ty);
+          ctx.stroke();
+          ctx.restore();
+          shooter.x += Math.cos(shooter.angle) * shooter.speed;
+          shooter.y += Math.sin(shooter.angle) * shooter.speed;
+          shooter.life -= 0.04;
+        }
+        requestAnimationFrame(shootTick);
+      };
+      shootTick();
+    }
+
     resize(); mkStars(); tick();
-    window.addEventListener('resize',()=>{resize();mkStars();});
+    window.addEventListener('resize', () => { resize(); mkStars(); });
   }
 
+  /* ── 2. ANIMATED COUNTERS ──────────────────────────────────── */
   function runCounters(root) {
-    (root||document).querySelectorAll('.stat-val').forEach(el=>{
-      if(el._emDone) return;
-      const raw=parseFloat(el.innerText.replace(/[^0-9.]/g,''));
-      if(isNaN(raw)||raw===0) return;
-      el._emDone=true;
-      const suffix=el.innerText.replace(/[0-9,.\s]/g,'');
-      const t0=performance.now(), dur=900;
-      (function step(now){
-        const p=Math.min((now-t0)/dur,1);
-        const ease=1-Math.pow(1-p,3);
-        el.innerText=Math.round(raw*ease).toLocaleString()+suffix;
-        if(p<1) requestAnimationFrame(step);
+    (root || document).querySelectorAll('.stat-val').forEach(el => {
+      if (el._emDone) return;
+      const raw = parseFloat(el.innerText.replace(/[^0-9.]/g, ''));
+      if (isNaN(raw) || raw === 0) return;
+      el._emDone = true;
+      const full = el.innerText;
+      const prefix = full.match(/^[^0-9]*/)?.[0] || '';
+      const suffix = full.replace(/^[^0-9]*/, '').replace(/[0-9,. ]+/, '');
+      const t0 = performance.now(), dur = 1000;
+      (function step(now) {
+        const p = Math.min((now - t0) / dur, 1);
+        const ease = 1 - Math.pow(1 - p, 3); // cubic ease-out
+        const cur = Math.round(raw * ease);
+        el.innerText = prefix + cur.toLocaleString('en-PK') + suffix;
+        if (p < 1) requestAnimationFrame(step);
       })(t0);
     });
   }
 
+  /* ── 3. SCROLL REVEAL ──────────────────────────────────────── */
   function initFade(root) {
-    if(!('IntersectionObserver' in window)) return;
-    const io=new IntersectionObserver(entries=>{
-      entries.forEach(e=>{
-        if(!e.isIntersecting) return;
-        e.target.style.opacity='1'; e.target.style.transform='translateY(0)'; io.unobserve(e.target);
+    if (!('IntersectionObserver' in window)) return;
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        e.target.style.opacity = '1';
+        e.target.style.transform = 'translateY(0)';
+        io.unobserve(e.target);
       });
-    },{threshold:0.06});
-    (root||document).querySelectorAll('.card,.stat-card,.tbl-wrap').forEach((el,i)=>{
-      if(el._emFade) return; el._emFade=true;
-      el.style.opacity='0'; el.style.transform='translateY(14px)';
-      el.style.transition=`opacity 0.38s ease ${i*35}ms,transform 0.38s ease ${i*35}ms`;
+    }, { threshold: 0.05 });
+
+    (root || document).querySelectorAll('.card, .stat-card, .tbl-wrap').forEach((el, i) => {
+      if (el._emFade) return;
+      el._emFade = true;
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(16px)';
+      el.style.transition = `opacity 0.40s ease ${i * 40}ms, transform 0.40s ease ${i * 40}ms`;
       io.observe(el);
     });
   }
 
+  /* ── 4. RIPPLE on click ────────────────────────────────────── */
   function initRipple() {
-    if(!document.getElementById('em-rk')){
-      const s=document.createElement('style'); s.id='em-rk';
-      s.textContent='@keyframes em-rk{to{transform:scale(3.5);opacity:0;}}';
-      document.head.appendChild(s);
-    }
-    document.addEventListener('click',e=>{
-      const btn=e.target.closest('button,.btn'); if(!btn) return;
-      const rc=btn.getBoundingClientRect(), d=Math.max(btn.offsetWidth,btn.offsetHeight);
-      const sp=document.createElement('span');
-      sp.style.cssText=`position:absolute;width:${d}px;height:${d}px;left:${e.clientX-rc.left-d/2}px;top:${e.clientY-rc.top-d/2}px;background:rgba(255,255,255,0.18);border-radius:50%;transform:scale(0);pointer-events:none;animation:em-rk .55s ease forwards;`;
-      const prev=btn.style.position; btn.style.position='relative'; btn.style.overflow='hidden';
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('button, .btn');
+      if (!btn) return;
+      const rc = btn.getBoundingClientRect();
+      const d = Math.max(btn.offsetWidth, btn.offsetHeight);
+      const sp = document.createElement('span');
+      sp.style.cssText = `
+        position:absolute;
+        width:${d}px;height:${d}px;
+        left:${e.clientX - rc.left - d / 2}px;
+        top:${e.clientY - rc.top - d / 2}px;
+        background:rgba(255,255,255,0.15);
+        border-radius:50%;
+        transform:scale(0);
+        pointer-events:none;
+        animation:em-rk .55s ease forwards;
+      `;
+      const prev = btn.style.position;
+      btn.style.position = 'relative';
+      btn.style.overflow = 'hidden';
       btn.appendChild(sp);
-      sp.addEventListener('animationend',()=>{ sp.remove(); if(!prev) btn.style.position=''; });
+      sp.addEventListener('animationend', () => {
+        sp.remove();
+        if (!prev) btn.style.position = '';
+      });
     });
   }
 
+  /* ── 5. TOOLTIP system ─────────────────────────────────────── */
   function initTip() {
-    const tip=document.createElement('div'); tip.id='em-tip';
-    tip.style.cssText='position:fixed;background:#0d1221;border:1px solid rgba(59,142,240,0.3);color:#e2e8f8;font-size:11px;padding:5px 10px;border-radius:7px;pointer-events:none;z-index:9999;opacity:0;transition:opacity .15s;white-space:nowrap;backdrop-filter:blur(8px);font-family:inherit;';
+    const tip = document.createElement('div');
+    tip.id = 'em-tip';
+    tip.style.cssText = `
+      position:fixed;
+      background:#0b0d1a;
+      border:1px solid rgba(77,142,255,0.28);
+      color:#dce8ff;font-size:11px;
+      padding:5px 12px;border-radius:8px;
+      pointer-events:none;z-index:9999;
+      opacity:0;transition:opacity .15s;
+      white-space:nowrap;
+      backdrop-filter:blur(10px);
+      font-family:'DM Sans',sans-serif;
+      box-shadow:0 4px 16px rgba(0,0,0,0.5);
+    `;
     document.body.appendChild(tip);
-    document.addEventListener('mouseover',e=>{ const el=e.target.closest('[data-em-tip]'); if(!el) return; tip.textContent=el.getAttribute('data-em-tip'); tip.style.opacity='1'; });
-    document.addEventListener('mousemove',e=>{ tip.style.left=(e.clientX+12)+'px'; tip.style.top=(e.clientY-30)+'px'; });
-    document.addEventListener('mouseout',e=>{ if(e.target.closest('[data-em-tip]')) tip.style.opacity='0'; });
+    document.addEventListener('mouseover', e => {
+      const el = e.target.closest('[data-em-tip]');
+      if (!el) return;
+      tip.textContent = el.getAttribute('data-em-tip');
+      tip.style.opacity = '1';
+    });
+    document.addEventListener('mousemove', e => {
+      tip.style.left = (e.clientX + 14) + 'px';
+      tip.style.top  = (e.clientY - 32) + 'px';
+    });
+    document.addEventListener('mouseout', e => {
+      if (e.target.closest('[data-em-tip]')) tip.style.opacity = '0';
+    });
   }
 
+  /* ── 6. PAGE TRANSITION ────────────────────────────────────── */
+  function initPageTransition() {
+    const content = document.getElementById('content');
+    if (!content) return;
+    const origRender = window.render;
+    if (!origRender) return;
+    window.render = async function(id) {
+      content.style.opacity = '0';
+      content.style.transform = 'translateY(6px)';
+      content.style.transition = 'opacity 0.15s ease, transform 0.15s ease';
+      await origRender(id);
+      requestAnimationFrame(() => {
+        content.style.opacity = '1';
+        content.style.transform = 'translateY(0)';
+      });
+    };
+  }
+
+  /* ── 7. ACTIVE NAV INDICATOR slide animation ───────────────── */
+  function enhanceNav() {
+    const nav = document.getElementById('sb-nav');
+    if (!nav) return;
+    const obs = new MutationObserver(() => {
+      nav.querySelectorAll('.nav-item').forEach((item, i) => {
+        item.style.animationDelay = `${i * 30}ms`;
+        item.style.animation = 'em-slideLeft 0.3s ease both';
+      });
+    });
+    obs.observe(nav, { childList: true });
+  }
+
+  /* ── 8. LOADING STATE for content area ────────────────────── */
+  function patchLoadingState() {
+    const origGoSec = window.goSec;
+    if (!origGoSec) return;
+    window.goSec = function(id) {
+      const content = document.getElementById('content');
+      if (content) {
+        content.innerHTML = `
+          <div style="display:flex;flex-direction:column;gap:14px;padding:4px 0;">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;">
+              ${[...Array(4)].map(() => `<div class="shimmer" style="height:90px;border-radius:13px;"></div>`).join('')}
+            </div>
+            <div class="shimmer" style="height:220px;border-radius:13px;"></div>
+            <div class="shimmer" style="height:160px;border-radius:13px;"></div>
+          </div>
+        `;
+      }
+      origGoSec(id);
+    };
+  }
+
+  /* ── 9. TABLE ROW HOVER enhancement ───────────────────────── */
+  function enhanceTables() {
+    document.addEventListener('mouseover', e => {
+      const row = e.target.closest('tbody tr');
+      if (row && !row._emEnhanced) {
+        row._emEnhanced = true;
+        row.style.transition = 'background 0.12s ease';
+      }
+    });
+  }
+
+  /* ── 10. MUTATION OBSERVER to re-run on content changes ────── */
   function watchDOM() {
-    const area=document.querySelector('.content,.main-wrap,#app,main'); if(!area) return;
-    new MutationObserver(()=>{ clearTimeout(window._emT); window._emT=setTimeout(()=>{ runCounters(); initFade(); },90); }).observe(area,{childList:true,subtree:true});
+    const area = document.querySelector('.content, .main-wrap, #app');
+    if (!area) return;
+    let timer;
+    new MutationObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        runCounters();
+        initFade();
+      }, 80);
+    }).observe(area, { childList: true, subtree: true });
   }
 
+  /* ── 11. SIDEBAR BRAND GLOW on hover ───────────────────────── */
+  function enhanceSidebar() {
+    const brand = document.querySelector('.sb-brand');
+    if (brand) {
+      brand.style.cursor = 'default';
+      brand.addEventListener('mouseenter', () => {
+        brand.style.textShadow = '0 0 20px rgba(77,142,255,0.6)';
+        brand.style.transition = 'text-shadow 0.3s ease';
+      });
+      brand.addEventListener('mouseleave', () => {
+        brand.style.textShadow = 'none';
+      });
+    }
+  }
+
+  /* ── 12. STAT CARD pulse on first appear ───────────────────── */
+  function pulseStatCards() {
+    document.querySelectorAll('.stat-card').forEach((card, i) => {
+      if (card._emPulsed) return;
+      card._emPulsed = true;
+      setTimeout(() => {
+        card.style.transition = 'box-shadow 0.4s ease';
+        card.style.boxShadow = '0 0 24px rgba(77,142,255,0.2)';
+        setTimeout(() => { card.style.boxShadow = ''; }, 600);
+      }, i * 80 + 300);
+    });
+  }
+
+  /* ── BOOT ────────────────────────────────────────────────────── */
   function boot() {
-    try{initStarfield();}catch(e){console.warn('[EM]',e);}
-    try{initRipple();}catch(e){console.warn('[EM]',e);}
-    try{initTip();}catch(e){console.warn('[EM]',e);}
-    try{runCounters();}catch(e){console.warn('[EM]',e);}
-    try{initFade();}catch(e){console.warn('[EM]',e);}
-    try{watchDOM();}catch(e){console.warn('[EM]',e);}
+    try { initStarfield();       } catch(e) { console.warn('[EM-Visuals] starfield:', e); }
+    try { initRipple();          } catch(e) { console.warn('[EM-Visuals] ripple:', e); }
+    try { initTip();             } catch(e) { console.warn('[EM-Visuals] tip:', e); }
+    try { enhanceTables();       } catch(e) { console.warn('[EM-Visuals] tables:', e); }
+    try { enhanceSidebar();      } catch(e) { console.warn('[EM-Visuals] sidebar:', e); }
+    try { watchDOM();            } catch(e) { console.warn('[EM-Visuals] dom:', e); }
+
+    // Defer these until after app renders
+    setTimeout(() => {
+      try { runCounters();        } catch(e) {}
+      try { initFade();           } catch(e) {}
+      try { pulseStatCards();     } catch(e) {}
+      try { initPageTransition(); } catch(e) {}
+      try { patchLoadingState();  } catch(e) {}
+      try { enhanceNav();         } catch(e) {}
+    }, 400);
   }
 
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',boot);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
   } else {
     boot();
   }
+
 })();
