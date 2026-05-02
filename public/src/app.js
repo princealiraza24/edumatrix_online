@@ -1105,688 +1105,6 @@ async function secUsers(c){
 
 
 // ── DIARIES / HOMEWORK ─────────────────────────────────────────────────────
-async function secDiary(c){
-  const canEdit = CU.role === 'admin' || CU.role === 'teacher';
-  const render = async(cls='', section='', date='') => {
-    const params = new URLSearchParams();
-    if(cls) params.set('cls', cls);
-    if(section) params.set('section', section);
-    if(date) params.set('date', date);
-    const list = await GET('/diaries?' + params) || [];
-
-    const subjectColors = {
-      'English':'blue','Mathematics':'green','Physics':'purple',
-      'Chemistry':'amber','Biology':'green','Urdu':'red',
-      'Islamiat':'green','Pakistan Studies':'amber','Computer':'blue',
-      'Default':'gray'
-    };
-    const getColor = (sub) => subjectColors[sub] || subjectColors['Default'];
-
-    c.innerHTML = `
-    ${canEdit ? `<div class="card">
-      <div class="card-title">Add Homework / Diary Entry</div>
-      <div class="fg" style="margin-bottom:12px;">
-        <div class="field"><label>Class *</label><select id="dw-cls">${clsOpts('',false)}</select></div>
-        <div class="field"><label>Section *</label><select id="dw-sec"><option value="A">A</option><option value="B">B</option></select></div>
-        <div class="field"><label>Subject *</label>
-          <select id="dw-sub">
-            <option>English</option><option>Mathematics</option><option>Physics</option>
-            <option>Chemistry</option><option>Biology</option><option>Urdu</option>
-            <option>Islamiat</option><option>Pakistan Studies</option><option>Computer</option><option>Other</option>
-          </select>
-        </div>
-        <div class="field"><label>Date *</label><input type="date" id="dw-date" value="${new Date().toISOString().split('T')[0]}"></div>
-      </div>
-      <div class="field"><label>Homework / Task *</label><textarea id="dw-hw" rows="3" placeholder="e.g. Complete exercise 5 from chapter 3, pages 45-47..."></textarea></div>
-      <div class="fg">
-        <div class="field"><label>Due Date</label><input type="date" id="dw-due"></div>
-        <div class="field"><label>Note (optional)</label><input id="dw-note" placeholder="e.g. Will be checked tomorrow"></div>
-      </div>
-      <button class="btn bp" onclick="saveDiary()" style="width:100%;">+ Post Homework</button>
-    </div>` : ''}
-
-    <div class="card">
-      <div class="card-title">Homework Diary
-        <span style="font-size:11px;font-weight:400;color:#9ca3af;">${list.length} entries</span>
-      </div>
-      <div class="frow" style="margin-bottom:14px;">
-        <select id="df-cls" onchange="rDiary()">
-          <option value="">All Classes</option>
-          ${CLS.map(cl=>`<option value="${cl.name}" ${cl.name===cls?'selected':''}>Class ${cl.name}</option>`).join('')}
-        </select>
-        <select id="df-sec" onchange="rDiary()">
-          <option value="">All Sections</option>
-          ${cls ? secList(cls).map(s=>`<option value="${s}" ${s===section?'selected':''}>${s}</option>`).join('') : '<option value="A">A</option><option value="B">B</option>'}
-        </select>
-        <input type="date" id="df-date" value="${date}" onchange="rDiary()">
-        <button class="btn" onclick="document.getElementById('df-date').value='';rDiary()">Clear Date</button>
-      </div>
-
-      ${list.length === 0 ?
-        `<div style="text-align:center;padding:30px;color:#9ca3af;">
-          <div style="font-size:32px;margin-bottom:8px;">📚</div>
-          <div style="font-size:13px;">No homework entries found.</div>
-          ${canEdit ? '<div style="font-size:12px;margin-top:4px;">Add homework using the form above.</div>' : ''}
-        </div>` :
-        `<div style="display:flex;flex-direction:column;gap:10px;">
-          ${list.map(d => `
-          <div style="border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;background:var(--bg2);">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                ${chip(d.subject, getColor(d.subject))}
-                ${chip('Class '+d.class+'-'+d.section,'blue')}
-                <span style="font-size:11px;color:var(--text2);">${d.date}</span>
-                ${d.due_date ? `<span style="font-size:11px;color:var(--red);">Due: ${d.due_date}</span>` : ''}
-              </div>
-              <div style="display:flex;align-items:center;gap:6px;">
-                <span style="font-size:11px;color:var(--text3);">By ${d.created_by_name||'Teacher'}</span>
-                ${canEdit ? `
-                  <button class="btn bs" onclick="editDiary('${d.id}')">Edit</button>
-                  <button class="btn bs bd" onclick="delDiary('${d.id}')">Delete</button>
-                ` : ''}
-              </div>
-            </div>
-            <div style="font-size:13px;color:var(--text);line-height:1.6;margin-bottom:${d.note?'6px':'0'};">${d.homework}</div>
-            ${d.note ? `<div style="font-size:12px;color:var(--text2);background:var(--bg3);padding:6px 10px;border-radius:var(--r);margin-top:6px;">📌 ${d.note}</div>` : ''}
-          </div>`).join('')}
-        </div>`
-      }
-    </div>`;
-  };
-
-  window.rDiary = async() => {
-    const cls = v('df-cls');
-    const secEl = document.getElementById('df-sec');
-    if(secEl && cls) secEl.innerHTML = '<option value="">All Sections</option>' + secList(cls).map(s=>`<option value="${s}">${s}</option>`).join('');
-    await render(cls, v('df-sec'), v('df-date'));
-  };
-
-  window.saveDiary = async() => {
-    const d = {
-      class: v('dw-cls'), section: v('dw-sec'), subject: v('dw-sub'),
-      date: v('dw-date'), homework: v('dw-hw'),
-      due_date: v('dw-due') || null, note: v('dw-note') || null,
-      created_by: CU.id
-    };
-    if(!d.class||!d.section||!d.subject||!d.date||!d.homework){
-      toast('Fill all required fields!','err'); return;
-    }
-    const res = await POST('/diaries', d);
-    if(res?.ok !== false){
-      document.getElementById('dw-hw').value = '';
-      document.getElementById('dw-note').value = '';
-      toast('Homework posted!','ok');
-      render(v('df-cls'), v('df-sec'), v('df-date'));
-    } else toast('Error: '+(res?.error||'Failed'),'err');
-  };
-
-  window.editDiary = async(id) => {
-    const list = await GET('/diaries') || [];
-    const d = list.find(x => x.id === id);
-    if(!d) return;
-    openModal('Edit Diary Entry',
-      `<div class="field"><label>Subject</label>
-        <select id="ed-sub">
-          <option ${d.subject==='English'?'selected':''}>English</option>
-          <option ${d.subject==='Mathematics'?'selected':''}>Mathematics</option>
-          <option ${d.subject==='Physics'?'selected':''}>Physics</option>
-          <option ${d.subject==='Chemistry'?'selected':''}>Chemistry</option>
-          <option ${d.subject==='Biology'?'selected':''}>Biology</option>
-          <option ${d.subject==='Urdu'?'selected':''}>Urdu</option>
-          <option ${d.subject==='Islamiat'?'selected':''}>Islamiat</option>
-          <option ${d.subject==='Pakistan Studies'?'selected':''}>Pakistan Studies</option>
-          <option ${d.subject==='Computer'?'selected':''}>Computer</option>
-          <option ${d.subject==='Other'?'selected':''}>Other</option>
-        </select>
-      </div>
-      <div class="field"><label>Date</label><input type="date" id="ed-date" value="${d.date}"></div>
-      <div class="field"><label>Homework *</label><textarea id="ed-hw" rows="4">${d.homework}</textarea></div>
-      <div class="field"><label>Due Date</label><input type="date" id="ed-due" value="${d.due_date||''}"></div>
-      <div class="field"><label>Note</label><input id="ed-note" value="${d.note||''}"></div>`,
-      `<button class="btn" onclick="closeModal()">Cancel</button>
-       <button class="btn bp" onclick="doEditDiary('${id}')">Update</button>`
-    );
-  };
-
-  window.doEditDiary = async(id) => {
-    const res = await PUT('/diaries/'+id, {
-      subject: v('ed-sub'), date: v('ed-date'),
-      homework: v('ed-hw'), due_date: v('ed-due')||null, note: v('ed-note')||null
-    });
-    if(res?.ok !== false){ closeModal(); toast('Updated!','ok'); render(); }
-    else toast('Error','err');
-  };
-
-  window.delDiary = async(id) => {
-    if(!confirm('Delete this homework entry?')) return;
-    await DEL('/diaries/'+id);
-    toast('Deleted');
-    render();
-  };
-
-  await render();
-}
-
-// ── SMS LOGS ───────────────────────────────────────────────────────────────
-async function secSMS(c){
-  // Only admin can see SMS logs
-  if(CU.role !== 'admin') {
-    await secNotifications(c);
-    return;
-  }
-  const logs=await GET('/sms/logs')||[];
-
-  // Check current push status
-  let pushStatus = 'Not supported';
-  let pushBtnText = 'Enable Notifications';
-  let pushBtnAction = 'enablePush()';
-  if ('Notification' in window) {
-    if (Notification.permission === 'granted') {
-      pushStatus = '✅ Enabled';
-      pushBtnText = 'Send Test Notification';
-      pushBtnAction = 'testPushNotif()';
-    } else if (Notification.permission === 'denied') {
-      pushStatus = '❌ Blocked — allow in browser settings';
-      pushBtnText = 'Blocked';
-      pushBtnAction = '';
-    } else {
-      pushStatus = '⚠️ Not enabled yet';
-    }
-  }
-
-  c.innerHTML=`
-  <div class="card" style="margin-bottom:14px;">
-    <div class="card-title">Push Notifications</div>
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:12px;background:var(--bg3);border-radius:var(--r);">
-      <div>
-        <div style="font-size:13px;font-weight:500;">Status: ${pushStatus}</div>
-        <div style="font-size:11px;color:var(--text2);margin-top:3px;">
-          When enabled — parents get notified instantly when child is absent.
-          Announcements also send notifications to everyone.
-        </div>
-      </div>
-      ${pushBtnAction ? `<button class="btn bp" onclick="${pushBtnAction}">${pushBtnText}</button>` : ''}
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-title">SMS Logs <span style="font-size:11px;font-weight:400;color:#9ca3af;">${logs.length} sent</span>
-      <button class="btn bp" onclick="testSMS()">Send Test SMS</button>
-    </div>
-    ${logs.length===0
-      ? '<p style="color:#9ca3af;font-size:12px;">No SMS sent yet. SMS sent automatically when student marked absent.</p>'
-      : `<div class="tbl-wrap"><table><thead><tr><th>Recipient</th><th>Message</th><th>Status</th><th>Time</th></tr></thead>
-        <tbody>${logs.map(l=>`<tr>
-          <td>${l.recipient}</td>
-          <td style="max-width:280px;font-size:11px;">${l.message}</td>
-          <td>${chip(l.status,'green')}</td>
-          <td style="font-size:11px;color:#9ca3af;">${(l.created_at||'').slice(0,16)}</td>
-        </tr>`).join('')}</tbody>
-        </table></div>`
-    }
-  </div>`;
-
-  window.enablePush = async () => {
-    await subscribeToPush();
-    toast('Notifications enabled!', 'ok');
-    secSMS(c);
-  };
-
-  window.testPushNotif = async () => {
-    const res = await POST('/push/test', {
-      user_id: CU.id,
-      title: '✅ Test Notification',
-      body: 'EduMatrix push notifications are working!'
-    });
-    if (res?.ok !== false) toast('Test notification sent! Check your phone.', 'ok');
-    else toast('Error sending notification', 'err');
-  };
-
-  window.testSMS = () => openModal('Send Test SMS',
-    `<div class="field"><label>Phone Number</label><input id="sms-to" placeholder="e.g. 0300-1234567"></div>
-     <div class="field"><label>Message</label><textarea id="sms-msg" rows="3">Test message from EduMatrix School System.</textarea></div>`,
-    `<button class="btn" onclick="closeModal()">Cancel</button>
-     <button class="btn bp" onclick="doTestSMS()">Send</button>`);
-
-  window.doTestSMS = async () => {
-    await POST('/sms/test', {to: v('sms-to'), message: v('sms-msg')});
-    closeModal(); toast('Test SMS sent!', 'ok'); secSMS(c);
-  };
-}
-
-// ── DIARY ──────────────────────────────────────────────────────────────────
-async function secDiary(c) {
-  const canEdit = CU.role === 'admin' || CU.role === 'teacher';
-  const fc = CLS[0]?.name || '9';
-  const fs = secList(fc)[0] || 'A';
-
-  const render = async (cls=fc, sec=fs, date=td()) => {
-    const entries = await GET(`/diary?cls=${cls}&section=${sec}&date=${date}`) || [];
-    const subjects = ['English','Mathematics','Physics','Chemistry','Biology','Urdu','Islamiyat','Pakistan Studies','Computer','Other'];
-
-    c.innerHTML = `
-    <div class="card">
-      <div class="card-title">Daily Diary — Homework & Notes
-        ${canEdit ? `<button class="btn bp" onclick="addDiaryModal('${cls}','${sec}','${date}')">+ Add Entry</button>` : ''}
-      </div>
-      <div class="frow" style="margin-bottom:14px;">
-        <select id="dc" onchange="rDiary()">${CLS.map(cl=>`<option value="${cl.name}" ${cl.name===cls?'selected':''}>Class ${cl.name}</option>`).join('')}</select>
-        <select id="ds" onchange="rDiary()">${secList(cls).map(s=>`<option value="${s}" ${s===sec?'selected':''}>${s}</option>`).join('')}</select>
-        <input id="dd" type="date" value="${date}" onchange="rDiary()">
-      </div>
-      ${entries.length === 0 ?
-        `<div style="text-align:center;padding:30px;color:#9ca3af;">
-          <div style="font-size:32px;margin-bottom:8px;">📚</div>
-          <div style="font-size:14px;font-weight:500;">No diary entries for this date</div>
-          <div style="font-size:12px;margin-top:4px;">${canEdit ? 'Click + Add Entry to add homework' : 'No homework assigned for today'}</div>
-        </div>` :
-        entries.map(e => `
-        <div style="border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;margin-bottom:10px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
-            <div style="display:flex;align-items:center;gap:8px;">
-              ${chip(e.subject, 'blue')}
-              ${e.is_important ? chip('Important','red') : ''}
-              <span style="font-size:11px;color:var(--text2);">Class ${e.class}-${e.section} · ${e.date}</span>
-            </div>
-            ${canEdit ? `<div style="display:flex;gap:6px;">
-              <button class="btn bs" onclick="editDiaryModal('${e.id}','${e.subject}','${e.class}','${e.section}','${e.date}')">Edit</button>
-              <button class="btn bs bd" onclick="delDiary('${e.id}')">Delete</button>
-            </div>` : ''}
-          </div>
-          <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">${e.title}</div>
-          <div style="font-size:13px;color:var(--text2);line-height:1.6;">${e.description || ''}</div>
-          ${e.due_date ? `<div style="margin-top:8px;font-size:11px;color:var(--amber);font-weight:500;">📅 Due: ${e.due_date}</div>` : ''}
-          <div style="margin-top:6px;font-size:11px;color:var(--text3);">Added by: ${e.users?.name || 'Teacher'}</div>
-        </div>`).join('')
-      }
-    </div>`;
-
-    window.rDiary = async () => {
-      const cls2 = v('dc');
-      const sel = document.getElementById('ds');
-      const sl = secList(cls2);
-      if (sel) sel.innerHTML = sl.map(s=>`<option value="${s}">${s}</option>`).join('');
-      await render(cls2, sl[0], v('dd'));
-    };
-
-    const diaryForm = (d={}) => `
-      <div class="fg">
-        <div class="field"><label>Subject *</label>
-          <select id="df-sub">
-            ${subjects.map(s=>`<option value="${s}" ${s===(d.subject||'')?'selected':''}>${s}</option>`).join('')}
-          </select>
-        </div>
-        <div class="field"><label>Date *</label><input type="date" id="df-date" value="${d.date||td()}"></div>
-        <div class="field"><label>Class *</label><select id="df-cls">${CLS.map(cl=>`<option value="${cl.name}" ${cl.name===(d.class||cls)?'selected':''}>Class ${cl.name}</option>`).join('')}</select></div>
-        <div class="field"><label>Section *</label><select id="df-sec">${secList(d.class||cls).map(s=>`<option value="${s}" ${s===(d.section||sec)?'selected':''}>${s}</option>`).join('')}</select></div>
-      </div>
-      <div class="field"><label>Homework Title *</label><input id="df-title" value="${d.title||''}" placeholder="e.g. Complete Exercise 5 from Chapter 3"></div>
-      <div class="field"><label>Description / Details</label><textarea id="df-desc" rows="4" placeholder="Detailed instructions for students...">${d.description||''}</textarea></div>
-      <div class="fg">
-        <div class="field"><label>Due Date</label><input type="date" id="df-due" value="${d.due_date||''}"></div>
-        <div class="field"><label>Mark as Important?</label>
-          <select id="df-imp">
-            <option value="false" ${!d.is_important?'selected':''}>No</option>
-            <option value="true" ${d.is_important?'selected':''}>Yes — Mark Important</option>
-          </select>
-        </div>
-      </div>`;
-
-    window.addDiaryModal = (cls3, sec3, date3) => openModal('Add Diary Entry', diaryForm({class:cls3,section:sec3,date:date3}),
-      `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn bp" onclick="saveDiary()">Save</button>`);
-
-    window.editDiaryModal = async (id, subject, dcls, dsec, ddate) => {
-      const entry = await GET('/diary?cls='+dcls+'&section='+dsec+'&date='+ddate);
-      const e = (entry||[]).find(x=>x.id===id) || {id,subject,class:dcls,section:dsec,date:ddate};
-      openModal('Edit Diary Entry', diaryForm(e),
-        `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn bp" onclick="saveDiary('${id}')">Update</button>`);
-    };
-
-    window.saveDiary = async (id) => {
-      const d = {
-        subject: v('df-sub'), date: v('df-date'), class: v('df-cls'),
-        section: v('df-sec'), title: v('df-title'), description: v('df-desc'),
-        due_date: v('df-due') || null, is_important: v('df-imp') === 'true',
-        created_by: CU.id
-      };
-      if (!d.subject || !d.title || !d.class || !d.section) { toast('Fill required fields', 'err'); return; }
-      const res = id ? await PUT('/diary/'+id, d) : await POST('/diary', d);
-      if (res?.ok !== false) { closeModal(); toast(id ? 'Updated!' : 'Diary entry added!', 'ok'); await render(v('dc')||cls, v('ds')||sec, v('dd')||date); }
-      else toast('Error: ' + (res?.error || 'Failed'), 'err');
-    };
-
-    window.delDiary = async (id) => {
-      if (!confirm('Delete this diary entry?')) return;
-      await DEL('/diary/' + id);
-      toast('Deleted');
-      await render(v('dc')||cls, v('ds')||sec, v('dd')||date);
-    };
-  };
-
-  await render();
-}
-
-// ── DIARIES ────────────────────────────────────────────────────────────────
-async function secDiary(c) {
-  const canEdit = CU.role === 'admin' || CU.role === 'teacher';
-  const render = async (cls = CLS[0]?.name || '', sec = '', date = '') => {
-    const params = new URLSearchParams();
-    if (cls) params.set('cls', cls);
-    if (sec) params.set('section', sec);
-    if (date) params.set('date', date);
-    const entries = await GET('/diaries?' + params) || [];
-    const subjects = ['English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Urdu', 'Islamiyat', 'Pakistan Studies', 'Computer'];
-    c.innerHTML = `
-      ${canEdit ? `<div class="card">
-        <div class="card-title">Add Homework Entry</div>
-        <div class="fg">
-          <div class="field"><label>Date *</label><input type="date" id="di-date" value="${td()}"></div>
-          <div class="field"><label>Class *</label><select id="di-cls" onchange="updDiarySec()">${clsOpts('', false)}</select></div>
-          <div class="field"><label>Section *</label><select id="di-sec">${CLS[0] ? secOpts(CLS[0].name, '') : ''}</select></div>
-          <div class="field"><label>Subject *</label>
-            <select id="di-sub">
-              ${subjects.map(s => `<option>${s}</option>`).join('')}
-              <option value="other">Other</option>
-            </select>
-          </div>
-        </div>
-        <div class="field"><label>Homework / Task *</label><textarea id="di-hw" rows="3" placeholder="e.g. Complete exercise 5 page 42, Read chapter 3..."></textarea></div>
-        <div class="field"><label>Note (optional)</label><input id="di-note" placeholder="e.g. Will be checked tomorrow, bring textbook..."></div>
-        <button class="btn bp" onclick="saveDiary()">Post Homework</button>
-      </div>` : ''}
-      <div class="card">
-        <div class="card-title">Class Diary
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <select id="df-cls" onchange="rDiary()">${clsOpts(cls)}</select>
-            <select id="df-sec" onchange="rDiary()"><option value="">All Sections</option>${cls ? secOpts(cls, sec) : ''}</select>
-            <input type="date" id="df-date" value="${date}" onchange="rDiary()" style="padding:6px 10px;border:1px solid var(--border2);border-radius:var(--r);font-size:12px;">
-            <button class="btn bs" onclick="document.getElementById('df-date').value='';rDiary()">Clear Date</button>
-          </div>
-        </div>
-        ${entries.length === 0
-          ? '<p style="color:#9ca3af;font-size:12px;padding:10px 0;">No homework entries found. Select a class to view diary.</p>'
-          : entries.map(e => `
-          <div style="border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:10px;background:var(--bg3);">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
-              <div style="display:flex;align-items:center;gap:8px;">
-                ${chip(e.subject, 'blue')}
-                ${chip('Class ' + e.class + '-' + e.section, 'gray')}
-                <span style="font-size:11px;color:var(--text2);">${e.date}</span>
-              </div>
-              <div style="display:flex;align-items:center;gap:6px;">
-                <span style="font-size:11px;color:var(--text2);">By: ${e.created_by_name}</span>
-                ${canEdit ? `<button class="btn bs bd" onclick="delDiary('${e.id}')">Delete</button>` : ''}
-              </div>
-            </div>
-            <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px;">${e.homework}</div>
-            ${e.note ? `<div style="font-size:12px;color:var(--text2);margin-top:4px;">📌 ${e.note}</div>` : ''}
-          </div>`).join('')
-        }
-      </div>`;
-
-    window.updDiarySec = () => {
-      const el = document.getElementById('di-sec');
-      if (el) el.innerHTML = secOpts(v('di-cls'), '');
-    };
-    window.rDiary = async () => {
-      const cls = v('df-cls');
-      const secEl = document.getElementById('df-sec');
-      if (secEl && cls) secEl.innerHTML = '<option value="">All Sections</option>' + secOpts(cls, '');
-      await render(cls, v('df-sec'), v('df-date'));
-    };
-    window.saveDiary = async () => {
-      const d = {
-        date: v('di-date'), class: v('di-cls'), section: v('di-sec'),
-        subject: v('di-sub'), homework: v('di-hw'), note: v('di-note'),
-        created_by: CU.id
-      };
-      if (!d.date || !d.class || !d.section || !d.homework) { toast('Fill required fields', 'err'); return; }
-      const res = await POST('/diaries', d);
-      if (res?.ok !== false) {
-        document.getElementById('di-hw').value = '';
-        document.getElementById('di-note').value = '';
-        toast('Homework posted!', 'ok');
-        render(v('df-cls'), v('df-sec'), v('df-date'));
-      } else toast('Error: ' + (res?.error || 'Failed'), 'err');
-    };
-    window.delDiary = async (id) => {
-      if (!confirm('Delete this homework entry?')) return;
-      await DEL('/diaries/' + id);
-      toast('Deleted');
-      render(v('df-cls'), v('df-sec'), v('df-date'));
-    };
-  };
-  await render();
-}
-
-// ── DIARY ──────────────────────────────────────────────────────────────────
-async function secDiary(c) {
-  const canEdit = CU.role === 'admin' || CU.role === 'teacher';
-  const fc = CLS[0]?.name || '9';
-  const fs = secList(fc)[0] || 'A';
-
-  const render = async (cls=fc, sec=fs, date=td()) => {
-    const params = new URLSearchParams({ cls, section: sec, date });
-    const entries = await GET('/diary?' + params) || [];
-    const secHTML = secList(cls).map(s => `<option value="${s}" ${s===sec?'selected':''}>${s}</option>`).join('');
-
-    c.innerHTML = `
-    <div class="card">
-      <div class="card-title">
-        Class Diary
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          ${canEdit ? `<button class="btn bp" onclick="addDiaryEntry('${cls}','${sec}','${date}')">+ Add Homework</button>` : ''}
-        </div>
-      </div>
-      <div class="frow" style="margin-bottom:14px;">
-        <select id="dc" onchange="rDiary()">
-          ${CLS.map(cl=>`<option value="${cl.name}" ${cl.name===cls?'selected':''}>Class ${cl.name}</option>`).join('')}
-        </select>
-        <select id="ds" onchange="rDiary()">
-          ${secHTML}
-        </select>
-        <input id="dd" type="date" value="${date}" onchange="rDiary()">
-        <button class="btn" onclick="rDiary()">View</button>
-      </div>
-
-      ${entries.length === 0 ?
-        `<div style="text-align:center;padding:40px 20px;color:#9ca3af;">
-          <div style="font-size:32px;margin-bottom:10px;">📖</div>
-          <div style="font-size:14px;font-weight:500;margin-bottom:4px;">No diary entries for this date</div>
-          <div style="font-size:12px;">${canEdit ? 'Click "+ Add Homework" to add entries' : 'No homework assigned for today'}</div>
-        </div>` :
-        `<div style="display:flex;flex-direction:column;gap:12px;">
-          ${entries.map(e => `
-          <div style="border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;">
-            <div style="background:${subjectColor(e.subject)};padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
-              <div style="display:flex;align-items:center;gap:10px;">
-                <span style="font-size:18px;">${subjectEmoji(e.subject)}</span>
-                <div>
-                  <div style="font-size:13px;font-weight:600;color:var(--text);">${e.subject}</div>
-                  <div style="font-size:11px;color:var(--text2);">Class ${e.class}-${e.section} · ${e.date} · By ${e.teacher_name||'Teacher'}</div>
-                </div>
-              </div>
-              <div style="display:flex;align-items:center;gap:6px;">
-                ${e.due_date ? `<span class="chip chip-amber">Due: ${e.due_date}</span>` : ''}
-                ${chip(e.type||'Homework', e.type==='Test'?'red':e.type==='Project'?'purple':'blue')}
-                ${canEdit ? `
-                  <button class="btn bs" onclick="editDiaryEntry('${e.id}','${e.subject}','${e.class}','${e.section}','${e.date}')">Edit</button>
-                  <button class="btn bs bd" onclick="delDiaryEntry('${e.id}')">Del</button>
-                ` : ''}
-              </div>
-            </div>
-            <div style="padding:12px 14px;background:var(--bg2);">
-              <div style="font-size:13px;color:var(--text);line-height:1.6;white-space:pre-wrap;">${e.homework}</div>
-              ${e.note ? `<div style="margin-top:8px;padding:8px 10px;background:var(--amber-l);border-radius:var(--r);font-size:12px;color:var(--amber);">📌 Note: ${e.note}</div>` : ''}
-            </div>
-          </div>`).join('')}
-        </div>`
-      }
-    </div>
-
-    <div class="card">
-      <div class="card-title">Weekly Overview — ${date.slice(0,7)}</div>
-      ${await diaryWeekly(cls, sec, date.slice(0,7))}
-    </div>`;
-  };
-
-  window.rDiary = async () => {
-    const cls = v('dc');
-    const secEl = document.getElementById('ds');
-    const sl = secList(cls);
-    if (secEl) secEl.innerHTML = sl.map(s=>`<option value="${s}">${s}</option>`).join('');
-    await render(cls, sl[0], v('dd'));
-  };
-
-  const diaryForm = (e={}) => `
-    <div class="field"><label>Subject *</label>
-      <select id="df-sub">
-        ${['English','Mathematics','Physics','Chemistry','Biology','Urdu','Islamiat','Pakistan Studies','Computer','Geography','History','Other'].map(s=>`<option value="${s}" ${(e.subject||'')=== s?'selected':''}>${s}</option>`).join('')}
-      </select>
-    </div>
-    <div class="fg">
-      <div class="field"><label>Class *</label>
-        <select id="df-cls" onchange="updDiarySec()">${clsOpts(e.class||fc, false)}</select>
-      </div>
-      <div class="field"><label>Section *</label>
-        <select id="df-sec">${secOpts(e.class||fc, e.section||fs)}</select>
-      </div>
-    </div>
-    <div class="fg">
-      <div class="field"><label>Date *</label>
-        <input type="date" id="df-date" value="${e.date||td()}">
-      </div>
-      <div class="field"><label>Due Date (optional)</label>
-        <input type="date" id="df-due" value="${e.due_date||''}">
-      </div>
-    </div>
-    <div class="field"><label>Type</label>
-      <select id="df-type">
-        <option value="Homework" ${(e.type||'Homework')==='Homework'?'selected':''}>Homework</option>
-        <option value="Test" ${e.type==='Test'?'selected':''}>Test / Quiz</option>
-        <option value="Project" ${e.type==='Project'?'selected':''}>Project</option>
-        <option value="Classwork" ${e.type==='Classwork'?'selected':''}>Classwork</option>
-        <option value="Reading" ${e.type==='Reading'?'selected':''}>Reading</option>
-      </select>
-    </div>
-    <div class="field"><label>Homework / Task *</label>
-      <textarea id="df-hw" rows="4" placeholder="e.g. Complete Exercise 5.1, Questions 1 to 10 from the textbook...">${e.homework||''}</textarea>
-    </div>
-    <div class="field"><label>Teacher Note (optional)</label>
-      <input id="df-note" placeholder="e.g. Bring geometry box tomorrow" value="${e.note||''}">
-    </div>`;
-
-  window.addDiaryEntry = (cls, sec, date) => {
-    openModal('Add Diary Entry', diaryForm({class:cls, section:sec, date}),
-      `<button class="btn" onclick="closeModal()">Cancel</button>
-       <button class="btn bp" onclick="saveDiaryEntry()">Save Entry</button>`);
-  };
-
-  window.editDiaryEntry = async (id, subject, cls, sec, date) => {
-    const entries = await GET(`/diary?cls=${cls}&section=${sec}&date=${date}`) || [];
-    const e = entries.find(x => x.id === id) || { id, subject, class:cls, section:sec, date };
-    openModal('Edit Diary Entry', diaryForm(e),
-      `<button class="btn" onclick="closeModal()">Cancel</button>
-       <button class="btn bp" onclick="saveDiaryEntry('${id}')">Update</button>`);
-  };
-
-  window.updDiarySec = () => {
-    const el = document.getElementById('df-sec');
-    if (el) el.innerHTML = secOpts(v('df-cls'), '');
-  };
-
-  window.saveDiaryEntry = async (id) => {
-    const d = {
-      subject:   v('df-sub'),
-      class:     v('df-cls'),
-      section:   v('df-sec'),
-      date:      v('df-date'),
-      due_date:  v('df-due') || null,
-      type:      v('df-type'),
-      homework:  v('df-hw'),
-      note:      v('df-note'),
-      created_by: CU.id,
-    };
-    if (!d.subject || !d.class || !d.section || !d.homework) {
-      toast('Fill all required fields', 'err'); return;
-    }
-    const res = id ? await PUT('/diary/' + id, d) : await POST('/diary', d);
-    if (res?.ok !== false) {
-      closeModal();
-      toast(id ? 'Updated!' : 'Diary entry added!', 'ok');
-      await render(v('dc') || d.class, v('ds') || d.section, v('dd') || d.date);
-    } else {
-      toast('Error saving entry', 'err');
-    }
-  };
-
-  window.delDiaryEntry = async (id) => {
-    if (!confirm('Delete this diary entry?')) return;
-    await DEL('/diary/' + id);
-    toast('Deleted');
-    rDiary();
-  };
-
-  await render();
-}
-
-// Diary weekly summary
-async function diaryWeekly(cls, sec, month) {
-  const entries = await GET(`/diary?cls=${cls}&section=${sec}&month=${month}`) || [];
-  if (!entries.length) return '<p style="color:#9ca3af;font-size:12px;">No entries this month.</p>';
-
-  // Group by date
-  const byDate = {};
-  entries.forEach(e => {
-    if (!byDate[e.date]) byDate[e.date] = [];
-    byDate[e.date].push(e);
-  });
-
-  const dates = Object.keys(byDate).sort().reverse();
-  return `<div style="display:flex;flex-direction:column;gap:8px;">
-    ${dates.slice(0,7).map(date => `
-    <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;">
-      <div style="padding:8px 12px;background:var(--bg3);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-        <span style="font-size:12px;font-weight:600;">${formatDate(date)}</span>
-        <span class="chip chip-blue">${byDate[date].length} subject${byDate[date].length>1?'s':''}</span>
-      </div>
-      <div style="padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px;">
-        ${byDate[date].map(e=>`
-          <div style="display:flex;align-items:center;gap:6px;padding:4px 10px;background:var(--bg3);border-radius:20px;font-size:12px;">
-            <span>${subjectEmoji(e.subject)}</span>
-            <span>${e.subject}</span>
-            ${chip(e.type||'Homework', e.type==='Test'?'red':e.type==='Project'?'purple':'blue')}
-          </div>`).join('')}
-      </div>
-    </div>`).join('')}
-  </div>`;
-}
-
-// Diary helper functions
-function subjectEmoji(subject) {
-  const map = {
-    'English':'📝', 'Mathematics':'🔢', 'Physics':'⚡', 'Chemistry':'🧪',
-    'Biology':'🌿', 'Urdu':'✒️', 'Islamiat':'☪️', 'Pakistan Studies':'🗺️',
-    'Computer':'💻', 'Geography':'🌍', 'History':'📜', 'Other':'📚'
-  };
-  return map[subject] || '📚';
-}
-
-function subjectColor(subject) {
-  const map = {
-    'English':'#f0f9ff', 'Mathematics':'#f0fdf4', 'Physics':'#fefce8',
-    'Chemistry':'#fdf4ff', 'Biology':'#f0fdf4', 'Urdu':'#fff7ed',
-    'Islamiat':'#f0fdf4', 'Pakistan Studies':'#eff6ff', 'Computer':'#f8fafc',
-    'Geography':'#ecfdf5', 'History':'#fef9c3', 'Other':'#f9fafb'
-  };
-  return map[subject] || '#f9fafb';
-}
-
-function formatDate(dateStr) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('en-PK', { weekday:'long', day:'numeric', month:'long' });
-}
-
-// ── DIARY ──────────────────────────────────────────────────────────────────
 async function secDiary(c) {
   const canEdit = CU.role === 'admin' || CU.role === 'teacher';
   const fc = CLS[0]?.name || '9';
@@ -2075,389 +1393,135 @@ async function secNotifications(c) {
 }
 
 /* ================================================================
-   EDUMATRIX VISUALS v4.0 — Enhanced Edition
-   APPEND THIS ENTIRE BLOCK to the bottom of your app.js
-   (replaces the old EduMatrixVisuals IIFE at the bottom)
+   EDUMATRIX VISUALS — isolated IIFE, safe to append
+   Zero impact on API, push notifications, Supabase, SW.
    ================================================================ */
 (function EduMatrixVisuals() {
   'use strict';
 
-  /* ── 1. STARFIELD ──────────────────────────────────────────── */
   function initStarfield() {
     const cv = document.createElement('canvas');
     cv.id = 'em-starfield-canvas';
     document.body.insertBefore(cv, document.body.firstChild);
     const ctx = cv.getContext('2d');
-    let W, H, stars = [], nebX, nebY, nebDX = 0.10, nebDY = 0.06;
-
+    let W, H, stars = [], orbX, orbY, orbDX = 0.12, orbDY = 0.07;
     function resize() {
-      W = cv.width  = window.innerWidth;
+      W = cv.width = window.innerWidth;
       H = cv.height = window.innerHeight;
-      nebX = W * 0.72; nebY = H * 0.18;
+      orbX = W * 0.75; orbY = H * 0.2;
     }
-
     function mkStars() {
       stars = [];
-      const count = Math.min(160, Math.floor(W * H / 8000));
-      for (let i = 0; i < count; i++) stars.push({
-        x: Math.random() * W, y: Math.random() * H,
-        r: Math.random() * 1.3 + 0.2,
-        sp: Math.random() * 0.18 + 0.03,
-        op: Math.random() * 0.45 + 0.12,
-        ph: Math.random() * Math.PI * 2,
-        trail: Math.random() > 0.88,
-        twinkle: Math.random() * 0.025 + 0.01,
+      for (let i = 0; i < 130; i++) stars.push({
+        x: Math.random()*W, y: Math.random()*H,
+        r: Math.random()*1.2+0.2, sp: Math.random()*0.22+0.04,
+        op: Math.random()*0.5+0.15, ph: Math.random()*Math.PI*2,
+        trail: Math.random() > 0.91
       });
     }
-
     function drawGrid() {
-      ctx.strokeStyle = 'rgba(77,142,255,0.025)';
-      ctx.lineWidth = 0.5;
-      const gs = 44;
-      for (let x = 0; x < W; x += gs) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-      for (let y = 0; y < H; y += gs) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+      ctx.strokeStyle = 'rgba(59,142,240,0.03)'; ctx.lineWidth = 0.5;
+      for (let x=0; x<W; x+=46) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+      for (let y=0; y<H; y+=46) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
     }
-
-    let frame = 0;
     function tick() {
-      frame++;
-      ctx.clearRect(0, 0, W, H);
-
-      // Drifting nebula glow
-      nebX += nebDX; nebY += nebDY;
-      if (nebX > W * 0.88 || nebX < W * 0.35) nebDX *= -1;
-      if (nebY > H * 0.65  || nebY < H * 0.05) nebDY *= -1;
-
-      const ng = ctx.createRadialGradient(nebX, nebY, 0, nebX, nebY, W * 0.40);
-      ng.addColorStop(0, 'rgba(77,142,255,0.08)');
-      ng.addColorStop(0.5, 'rgba(176,125,255,0.03)');
-      ng.addColorStop(1, 'transparent');
-      ctx.fillStyle = ng;
-      ctx.fillRect(0, 0, W, H);
-
-      // Second smaller nebula
-      const ng2x = W * 0.15, ng2y = H * 0.80;
-      const ng2 = ctx.createRadialGradient(ng2x, ng2y, 0, ng2x, ng2y, W * 0.25);
-      ng2.addColorStop(0, 'rgba(45,212,170,0.04)');
-      ng2.addColorStop(1, 'transparent');
-      ctx.fillStyle = ng2;
-      ctx.fillRect(0, 0, W, H);
-
+      ctx.clearRect(0,0,W,H);
+      orbX+=orbDX; orbY+=orbDY;
+      if(orbX>W*.9||orbX<W*.4) orbDX*=-1;
+      if(orbY>H*.6||orbY<H*.04) orbDY*=-1;
+      const g=ctx.createRadialGradient(orbX,orbY,0,orbX,orbY,W*.38);
+      g.addColorStop(0,'rgba(59,142,240,0.09)'); g.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
       drawGrid();
-
       for (const s of stars) {
-        s.ph += s.twinkle;
-        const op = s.op * (0.55 + 0.45 * Math.sin(s.ph));
-
-        if (s.trail) {
-          ctx.beginPath();
-          ctx.moveTo(s.x, s.y);
-          ctx.lineTo(s.x, s.y + s.sp * 10);
-          ctx.strokeStyle = `rgba(140,195,255,${op * 0.25})`;
-          ctx.lineWidth = s.r * 0.4;
-          ctx.stroke();
-        }
-
-        // Star glow for larger ones
-        if (s.r > 1.0) {
-          ctx.beginPath();
-          ctx.arc(s.x, s.y, s.r * 2.5, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(190,220,255,${op * 0.06})`;
-          ctx.fill();
-        }
-
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(200,225,255,${op})`;
-        ctx.fill();
-
-        s.y -= s.sp;
-        if (s.y < -3) { s.y = H + 3; s.x = Math.random() * W; }
+        s.ph+=0.016;
+        const op=s.op*(0.6+0.4*Math.sin(s.ph));
+        if(s.trail){ ctx.beginPath(); ctx.moveTo(s.x,s.y); ctx.lineTo(s.x,s.y+s.sp*8); ctx.strokeStyle=`rgba(120,185,255,${op*0.3})`; ctx.lineWidth=s.r*0.5; ctx.stroke(); }
+        ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fillStyle=`rgba(190,220,255,${op})`; ctx.fill();
+        s.y-=s.sp; if(s.y<-2){s.y=H+2;s.x=Math.random()*W;}
       }
-
-      // Occasional shooting star
-      if (frame % 380 === 0) spawnShootingStar();
-
       requestAnimationFrame(tick);
     }
-
-    let shooter = null;
-    function spawnShootingStar() {
-      shooter = {
-        x: Math.random() * W * 0.6 + W * 0.2,
-        y: Math.random() * H * 0.3,
-        len: 120 + Math.random() * 80,
-        speed: 6 + Math.random() * 4,
-        angle: Math.PI / 4 + (Math.random() - 0.5) * 0.3,
-        life: 1,
-      };
-      const origTick = tick;
-      let sf = 0;
-      const shootTick = () => {
-        if (!shooter || sf++ > 60) { shooter = null; return; }
-        if (shooter) {
-          ctx.save();
-          ctx.globalAlpha = shooter.life;
-          const tx = shooter.x + Math.cos(shooter.angle) * shooter.len;
-          const ty = shooter.y + Math.sin(shooter.angle) * shooter.len;
-          const g = ctx.createLinearGradient(shooter.x, shooter.y, tx, ty);
-          g.addColorStop(0, 'rgba(255,255,255,0)');
-          g.addColorStop(1, 'rgba(160,210,255,0.7)');
-          ctx.strokeStyle = g;
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.moveTo(shooter.x, shooter.y);
-          ctx.lineTo(tx, ty);
-          ctx.stroke();
-          ctx.restore();
-          shooter.x += Math.cos(shooter.angle) * shooter.speed;
-          shooter.y += Math.sin(shooter.angle) * shooter.speed;
-          shooter.life -= 0.04;
-        }
-        requestAnimationFrame(shootTick);
-      };
-      shootTick();
-    }
-
     resize(); mkStars(); tick();
-    window.addEventListener('resize', () => { resize(); mkStars(); });
+    window.addEventListener('resize',()=>{resize();mkStars();});
   }
 
-  /* ── 2. ANIMATED COUNTERS ──────────────────────────────────── */
   function runCounters(root) {
-    (root || document).querySelectorAll('.stat-val').forEach(el => {
-      if (el._emDone) return;
-      const raw = parseFloat(el.innerText.replace(/[^0-9.]/g, ''));
-      if (isNaN(raw) || raw === 0) return;
-      el._emDone = true;
-      const full = el.innerText;
-      const prefix = full.match(/^[^0-9]*/)?.[0] || '';
-      const suffix = full.replace(/^[^0-9]*/, '').replace(/[0-9,. ]+/, '');
-      const t0 = performance.now(), dur = 1000;
-      (function step(now) {
-        const p = Math.min((now - t0) / dur, 1);
-        const ease = 1 - Math.pow(1 - p, 3); // cubic ease-out
-        const cur = Math.round(raw * ease);
-        el.innerText = prefix + cur.toLocaleString('en-PK') + suffix;
-        if (p < 1) requestAnimationFrame(step);
+    (root||document).querySelectorAll('.stat-val').forEach(el=>{
+      if(el._emDone) return;
+      const raw=parseFloat(el.innerText.replace(/[^0-9.]/g,''));
+      if(isNaN(raw)||raw===0) return;
+      el._emDone=true;
+      const suffix=el.innerText.replace(/[0-9,.\s]/g,'');
+      const t0=performance.now(), dur=900;
+      (function step(now){
+        const p=Math.min((now-t0)/dur,1);
+        const ease=1-Math.pow(1-p,3);
+        el.innerText=Math.round(raw*ease).toLocaleString()+suffix;
+        if(p<1) requestAnimationFrame(step);
       })(t0);
     });
   }
 
-  /* ── 3. SCROLL REVEAL ──────────────────────────────────────── */
   function initFade(root) {
-    if (!('IntersectionObserver' in window)) return;
-    const io = new IntersectionObserver(entries => {
-      entries.forEach(e => {
-        if (!e.isIntersecting) return;
-        e.target.style.opacity = '1';
-        e.target.style.transform = 'translateY(0)';
-        io.unobserve(e.target);
+    if(!('IntersectionObserver' in window)) return;
+    const io=new IntersectionObserver(entries=>{
+      entries.forEach(e=>{
+        if(!e.isIntersecting) return;
+        e.target.style.opacity='1'; e.target.style.transform='translateY(0)'; io.unobserve(e.target);
       });
-    }, { threshold: 0.05 });
-
-    (root || document).querySelectorAll('.card, .stat-card, .tbl-wrap').forEach((el, i) => {
-      if (el._emFade) return;
-      el._emFade = true;
-      el.style.opacity = '0';
-      el.style.transform = 'translateY(16px)';
-      el.style.transition = `opacity 0.40s ease ${i * 40}ms, transform 0.40s ease ${i * 40}ms`;
+    },{threshold:0.06});
+    (root||document).querySelectorAll('.card,.stat-card,.tbl-wrap').forEach((el,i)=>{
+      if(el._emFade) return; el._emFade=true;
+      el.style.opacity='0'; el.style.transform='translateY(14px)';
+      el.style.transition=`opacity 0.38s ease ${i*35}ms,transform 0.38s ease ${i*35}ms`;
       io.observe(el);
     });
   }
 
-  /* ── 4. RIPPLE on click ────────────────────────────────────── */
   function initRipple() {
-    document.addEventListener('click', e => {
-      const btn = e.target.closest('button, .btn');
-      if (!btn) return;
-      const rc = btn.getBoundingClientRect();
-      const d = Math.max(btn.offsetWidth, btn.offsetHeight);
-      const sp = document.createElement('span');
-      sp.style.cssText = `
-        position:absolute;
-        width:${d}px;height:${d}px;
-        left:${e.clientX - rc.left - d / 2}px;
-        top:${e.clientY - rc.top - d / 2}px;
-        background:rgba(255,255,255,0.15);
-        border-radius:50%;
-        transform:scale(0);
-        pointer-events:none;
-        animation:em-rk .55s ease forwards;
-      `;
-      const prev = btn.style.position;
-      btn.style.position = 'relative';
-      btn.style.overflow = 'hidden';
-      btn.appendChild(sp);
-      sp.addEventListener('animationend', () => {
-        sp.remove();
-        if (!prev) btn.style.position = '';
-      });
-    });
-  }
-
-  /* ── 5. TOOLTIP system ─────────────────────────────────────── */
-  function initTip() {
-    const tip = document.createElement('div');
-    tip.id = 'em-tip';
-    tip.style.cssText = `
-      position:fixed;
-      background:#0b0d1a;
-      border:1px solid rgba(77,142,255,0.28);
-      color:#dce8ff;font-size:11px;
-      padding:5px 12px;border-radius:8px;
-      pointer-events:none;z-index:9999;
-      opacity:0;transition:opacity .15s;
-      white-space:nowrap;
-      backdrop-filter:blur(10px);
-      font-family:'DM Sans',sans-serif;
-      box-shadow:0 4px 16px rgba(0,0,0,0.5);
-    `;
-    document.body.appendChild(tip);
-    document.addEventListener('mouseover', e => {
-      const el = e.target.closest('[data-em-tip]');
-      if (!el) return;
-      tip.textContent = el.getAttribute('data-em-tip');
-      tip.style.opacity = '1';
-    });
-    document.addEventListener('mousemove', e => {
-      tip.style.left = (e.clientX + 14) + 'px';
-      tip.style.top  = (e.clientY - 32) + 'px';
-    });
-    document.addEventListener('mouseout', e => {
-      if (e.target.closest('[data-em-tip]')) tip.style.opacity = '0';
-    });
-  }
-
-  /* ── 6. PAGE TRANSITION ────────────────────────────────────── */
-  function initPageTransition() {
-    const content = document.getElementById('content');
-    if (!content) return;
-    const origRender = window.render;
-    if (!origRender) return;
-    window.render = async function(id) {
-      content.style.opacity = '0';
-      content.style.transform = 'translateY(6px)';
-      content.style.transition = 'opacity 0.15s ease, transform 0.15s ease';
-      await origRender(id);
-      requestAnimationFrame(() => {
-        content.style.opacity = '1';
-        content.style.transform = 'translateY(0)';
-      });
-    };
-  }
-
-  /* ── 7. ACTIVE NAV INDICATOR slide animation ───────────────── */
-  function enhanceNav() {
-    const nav = document.getElementById('sb-nav');
-    if (!nav) return;
-    const obs = new MutationObserver(() => {
-      nav.querySelectorAll('.nav-item').forEach((item, i) => {
-        item.style.animationDelay = `${i * 30}ms`;
-        item.style.animation = 'em-slideLeft 0.3s ease both';
-      });
-    });
-    obs.observe(nav, { childList: true });
-  }
-
-  /* ── 8. LOADING STATE for content area ────────────────────── */
-  function patchLoadingState() {
-    const origGoSec = window.goSec;
-    if (!origGoSec) return;
-    window.goSec = function(id) {
-      const content = document.getElementById('content');
-      if (content) {
-        content.innerHTML = `
-          <div style="display:flex;flex-direction:column;gap:14px;padding:4px 0;">
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;">
-              ${[...Array(4)].map(() => `<div class="shimmer" style="height:90px;border-radius:13px;"></div>`).join('')}
-            </div>
-            <div class="shimmer" style="height:220px;border-radius:13px;"></div>
-            <div class="shimmer" style="height:160px;border-radius:13px;"></div>
-          </div>
-        `;
-      }
-      origGoSec(id);
-    };
-  }
-
-  /* ── 9. TABLE ROW HOVER enhancement ───────────────────────── */
-  function enhanceTables() {
-    document.addEventListener('mouseover', e => {
-      const row = e.target.closest('tbody tr');
-      if (row && !row._emEnhanced) {
-        row._emEnhanced = true;
-        row.style.transition = 'background 0.12s ease';
-      }
-    });
-  }
-
-  /* ── 10. MUTATION OBSERVER to re-run on content changes ────── */
-  function watchDOM() {
-    const area = document.querySelector('.content, .main-wrap, #app');
-    if (!area) return;
-    let timer;
-    new MutationObserver(() => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        runCounters();
-        initFade();
-      }, 80);
-    }).observe(area, { childList: true, subtree: true });
-  }
-
-  /* ── 11. SIDEBAR BRAND GLOW on hover ───────────────────────── */
-  function enhanceSidebar() {
-    const brand = document.querySelector('.sb-brand');
-    if (brand) {
-      brand.style.cursor = 'default';
-      brand.addEventListener('mouseenter', () => {
-        brand.style.textShadow = '0 0 20px rgba(77,142,255,0.6)';
-        brand.style.transition = 'text-shadow 0.3s ease';
-      });
-      brand.addEventListener('mouseleave', () => {
-        brand.style.textShadow = 'none';
-      });
+    if(!document.getElementById('em-rk')){
+      const s=document.createElement('style'); s.id='em-rk';
+      s.textContent='@keyframes em-rk{to{transform:scale(3.5);opacity:0;}}';
+      document.head.appendChild(s);
     }
-  }
-
-  /* ── 12. STAT CARD pulse on first appear ───────────────────── */
-  function pulseStatCards() {
-    document.querySelectorAll('.stat-card').forEach((card, i) => {
-      if (card._emPulsed) return;
-      card._emPulsed = true;
-      setTimeout(() => {
-        card.style.transition = 'box-shadow 0.4s ease';
-        card.style.boxShadow = '0 0 24px rgba(77,142,255,0.2)';
-        setTimeout(() => { card.style.boxShadow = ''; }, 600);
-      }, i * 80 + 300);
+    document.addEventListener('click',e=>{
+      const btn=e.target.closest('button,.btn'); if(!btn) return;
+      const rc=btn.getBoundingClientRect(), d=Math.max(btn.offsetWidth,btn.offsetHeight);
+      const sp=document.createElement('span');
+      sp.style.cssText=`position:absolute;width:${d}px;height:${d}px;left:${e.clientX-rc.left-d/2}px;top:${e.clientY-rc.top-d/2}px;background:rgba(255,255,255,0.18);border-radius:50%;transform:scale(0);pointer-events:none;animation:em-rk .55s ease forwards;`;
+      const prev=btn.style.position; btn.style.position='relative'; btn.style.overflow='hidden';
+      btn.appendChild(sp);
+      sp.addEventListener('animationend',()=>{ sp.remove(); if(!prev) btn.style.position=''; });
     });
   }
 
-  /* ── BOOT ────────────────────────────────────────────────────── */
-  function boot() {
-    try { initStarfield();       } catch(e) { console.warn('[EM-Visuals] starfield:', e); }
-    try { initRipple();          } catch(e) { console.warn('[EM-Visuals] ripple:', e); }
-    try { initTip();             } catch(e) { console.warn('[EM-Visuals] tip:', e); }
-    try { enhanceTables();       } catch(e) { console.warn('[EM-Visuals] tables:', e); }
-    try { enhanceSidebar();      } catch(e) { console.warn('[EM-Visuals] sidebar:', e); }
-    try { watchDOM();            } catch(e) { console.warn('[EM-Visuals] dom:', e); }
-
-    // Defer these until after app renders
-    setTimeout(() => {
-      try { runCounters();        } catch(e) {}
-      try { initFade();           } catch(e) {}
-      try { pulseStatCards();     } catch(e) {}
-      try { initPageTransition(); } catch(e) {}
-      try { patchLoadingState();  } catch(e) {}
-      try { enhanceNav();         } catch(e) {}
-    }, 400);
+  function initTip() {
+    const tip=document.createElement('div'); tip.id='em-tip';
+    tip.style.cssText='position:fixed;background:#0d1221;border:1px solid rgba(59,142,240,0.3);color:#e2e8f8;font-size:11px;padding:5px 10px;border-radius:7px;pointer-events:none;z-index:9999;opacity:0;transition:opacity .15s;white-space:nowrap;backdrop-filter:blur(8px);font-family:inherit;';
+    document.body.appendChild(tip);
+    document.addEventListener('mouseover',e=>{ const el=e.target.closest('[data-em-tip]'); if(!el) return; tip.textContent=el.getAttribute('data-em-tip'); tip.style.opacity='1'; });
+    document.addEventListener('mousemove',e=>{ tip.style.left=(e.clientX+12)+'px'; tip.style.top=(e.clientY-30)+'px'; });
+    document.addEventListener('mouseout',e=>{ if(e.target.closest('[data-em-tip]')) tip.style.opacity='0'; });
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
+  function watchDOM() {
+    const area=document.querySelector('.content,.main-wrap,#app,main'); if(!area) return;
+    new MutationObserver(()=>{ clearTimeout(window._emT); window._emT=setTimeout(()=>{ runCounters(); initFade(); },90); }).observe(area,{childList:true,subtree:true});
+  }
+
+  function boot() {
+    try{initStarfield();}catch(e){console.warn('[EM]',e);}
+    try{initRipple();}catch(e){console.warn('[EM]',e);}
+    try{initTip();}catch(e){console.warn('[EM]',e);}
+    try{runCounters();}catch(e){console.warn('[EM]',e);}
+    try{initFade();}catch(e){console.warn('[EM]',e);}
+    try{watchDOM();}catch(e){console.warn('[EM]',e);}
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',boot);
   } else {
     boot();
   }
-
 })();
